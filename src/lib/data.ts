@@ -1,4 +1,3 @@
-
 import type { User, Video, Bookmark, Tip, GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd } from './types';
 
 export const users: User[] = [
@@ -232,4 +231,4 @@ export const serviceAds: GossipServiceAd[] = [
         contactInfo: 'headshots@photo.com',
         imageUrl: 'https://picsum.photos/seed/headshot/800/200',
     }
-]
+];
