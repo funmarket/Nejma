@@ -1,10 +1,10 @@
 'use client';
-import { httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { signWalletMessage } from "@/lib/wallet/signMessage";
 import { connectWallet } from "@/lib/wallet/connectWallet";
 import { initializeFirebase } from "@/firebase";
-import { doc, setDoc, getFunctions } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 export const loginWithWallet = async (provider: 'phantom' | 'solflare' | 'backpack') => {
   const { firestore, auth } = initializeFirebase();
