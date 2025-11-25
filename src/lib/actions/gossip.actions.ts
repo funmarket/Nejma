@@ -1,4 +1,3 @@
-
 'use server';
 
 import { users, videos as mockVideos, gossipPosts as mockGossipPosts, gossipComments as mockGossipComments, gossipRatings as mockGossipRatings, gossipFollows as mockGossipFollows, serviceAds as mockServiceAds } from '@/lib/data';

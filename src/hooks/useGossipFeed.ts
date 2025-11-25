@@ -94,6 +94,8 @@ export function useGossipFeed() {
     setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }));
     if (!comments[postId] && !expandedComments[postId]) {
       const commentsData = await listComments(postId);
+      const commentAuthors = await getGossipAuthors(commentsData.map(c => ({...c, authorWallet: c.authorWallet, content: '', category: '', createdAt: 0, commentsCount: 0})))
+      setAuthors(prev => ({ ...prev, ...commentAuthors}));
       setComments(prev => ({ ...prev, [postId]: commentsData }));
     }
   };

@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { MessageCircle, Trash2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Textarea } from '../ui/textarea';
 
 function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitComment }: { 
@@ -30,7 +30,7 @@ function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitC
             setNewComment('');
         }
     }
-
+    
     return (
         <div className="bg-muted/30 border-t border-border mt-4 p-4 space-y-4">
             {comments.map(comment => (
