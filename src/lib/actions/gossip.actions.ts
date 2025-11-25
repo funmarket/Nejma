@@ -1,3 +1,4 @@
+
 'use server';
 
 import { users, videos as mockVideos, gossipPosts as mockGossipPosts, gossipComments as mockGossipComments, gossipRatings as mockGossipRatings, gossipFollows as mockGossipFollows, serviceAds as mockServiceAds } from '@/lib/data';
@@ -129,16 +130,17 @@ export async function unfollowUser(followerWallet: string, followingWallet: stri
     return { success: false };
 }
 
-export async function getGossipAuthors(posts: GossipPost[]): Promise<Record<string, any>> {
-  const authorWallets = [...new Set(posts.map(p => p.authorWallet))];
-  const authorPromises = authorWallets.map(wallet => getUserByWallet(wallet));
-  const authors = await Promise.all(authorPromises);
-  
-  const authorsMap: Record<string, any> = {};
-  authors.forEach(author => {
-    if (author) {
-      authorsMap[author.walletAddress] = author;
+export async function getGossipAuthors(items: { authorWallet: string }[]): Promise<Record<string, User>> {
+  const authorWallets = [...new Set(items.map(p => p.authorWallet))];
+  const authorsMap: Record<string, User> = {};
+
+  for (const wallet of authorWallets) {
+    if (!authorsMap[wallet]) {
+      const user = await getUserByWallet(wallet);
+      if (user) {
+        authorsMap[wallet] = user;
+      }
     }
-  });
+  }
   return authorsMap;
 }
