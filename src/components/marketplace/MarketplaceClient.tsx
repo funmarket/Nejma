@@ -1,12 +1,15 @@
 'use client';
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Search, ShoppingCart, Tag } from 'lucide-react';
+import { Search, ShoppingCart, Tag, PlusCircle } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 type MarketplaceItem = {
   id: string;
@@ -69,6 +72,7 @@ function ItemCard({ item }: { item: MarketplaceItem }) {
 }
 
 export default function MarketplaceClient({ items, categories, subcategories }: MarketplaceClientProps) {
+  const router = useRouter();
   const [filters, setFilters] = useState({
     search: '',
     category: 'all',
@@ -109,83 +113,103 @@ export default function MarketplaceClient({ items, categories, subcategories }: 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="text-center mb-12">
+        <header className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-500">
             Marketplace
           </h1>
           <p className="mt-2 text-lg text-muted-foreground">Discover exclusive items from your favorite artists.</p>
         </header>
         
-        <aside className="mb-8 p-4 bg-muted/50 rounded-xl border border-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
-            <div className="relative lg:col-span-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input 
-                placeholder="Search items or sellers..." 
-                className="pl-10"
-                value={filters.search}
-                onChange={e => handleFilterChange('search', e.target.value)}
-              />
-            </div>
-            
-            <Select value={filters.category} onValueChange={(value) => handleFilterChange('category', value)}>
-              <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-             <Select value={filters.subcategory} onValueChange={(value) => handleFilterChange('subcategory', value)} disabled={filters.category === 'all'}>
-              <SelectTrigger><SelectValue placeholder="Subcategory" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subcategories</SelectItem>
-                 {currentSubcategories.map(sub => (
-                  <SelectItem key={sub} value={sub} className="capitalize">{sub}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
-              <SelectTrigger><SelectValue placeholder="Sort by" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                <SelectItem value="price-desc">Price: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="col-span-full space-y-2">
-              <div className="flex justify-between text-sm">
-                <label>Price Range</label>
-                <span>${filters.priceRange[0]} - ${filters.priceRange[1] === 1500 ? '1500+' : filters.priceRange[1]}</span>
-              </div>
-              <Slider
-                min={0}
-                max={1500}
-                step={10}
-                value={[filters.priceRange[1]]}
-                onValueChange={(value) => handleFilterChange('priceRange', [0, value[0]])}
-              />
-            </div>
-
+        <Tabs defaultValue="buy" className="w-full">
+          <div className="flex justify-between items-end mb-4 flex-wrap gap-4">
+              <TabsList>
+                <TabsTrigger value="buy">Buy</TabsTrigger>
+                <TabsTrigger value="rent">Rent</TabsTrigger>
+              </TabsList>
+              <Button onClick={() => {/* TODO: router.push('/marketplace/list') */}} >
+                <PlusCircle className="mr-2 h-4 w-4" /> List an Item
+              </Button>
           </div>
-        </aside>
 
-        <main>
-          {filteredItems.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filteredItems.map(item => <ItemCard key={item.id} item={item} />)}
+          <aside className="mb-8 p-4 bg-muted/50 rounded-xl border border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+              <div className="relative lg:col-span-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input 
+                  placeholder="Search items or sellers..." 
+                  className="pl-10"
+                  value={filters.search}
+                  onChange={e => handleFilterChange('search', e.target.value)}
+                />
+              </div>
+              
+              <Select value={filters.category} onValueChange={(value) => handleFilterChange('category', value)}>
+                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+               <Select value={filters.subcategory} onValueChange={(value) => handleFilterChange('subcategory', value)} disabled={filters.category === 'all'}>
+                <SelectTrigger><SelectValue placeholder="Subcategory" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subcategories</SelectItem>
+                   {currentSubcategories.map(sub => (
+                    <SelectItem key={sub} value={sub} className="capitalize">{sub}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
+                <SelectTrigger><SelectValue placeholder="Sort by" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="col-span-full space-y-2">
+                <div className="flex justify-between text-sm">
+                  <label>Price Range</label>
+                  <span>${filters.priceRange[0]} - ${filters.priceRange[1] === 1500 ? '1500+' : filters.priceRange[1]}</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={1500}
+                  step={10}
+                  value={[filters.priceRange[1]]}
+                  onValueChange={(value) => handleFilterChange('priceRange', [0, value[0]])}
+                />
+              </div>
+
+            </div>
+          </aside>
+          
+          <TabsContent value="buy">
+             <main>
+              {filteredItems.length > 0 ? (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {filteredItems.map(item => <ItemCard key={item.id} item={item} />)}
+                 </div>
+              ) : (
+                 <div className="text-center py-20 bg-muted rounded-xl border border-dashed">
+                    <h3 className="text-xl font-semibold">No items found</h3>
+                    <p className="text-muted-foreground mt-2">Try adjusting your filters.</p>
+                 </div>
+              )}
+            </main>
+          </TabsContent>
+          <TabsContent value="rent">
+            <div className="text-center py-20 bg-muted rounded-xl border border-dashed">
+                <h3 className="text-xl font-semibold">Rental Marketplace Coming Soon!</h3>
+                <p className="text-muted-foreground mt-2">Check back later to rent items from creators.</p>
              </div>
-          ) : (
-             <div className="text-center py-20 bg-muted rounded-xl border border-dashed">
-                <h3 className="text-xl font-semibold">No items found</h3>
-                <p className="text-muted-foreground mt-2">Try adjusting your filters.</p>
-             </div>
-          )}
-        </main>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
