@@ -181,8 +181,8 @@ export default function MarketplaceClient({ items, categories, subcategories }: 
                   min={0}
                   max={1500}
                   step={10}
-                  value={[filters.priceRange[1]]}
-                  onValueChange={(value) => handleFilterChange('priceRange', [0, value[0]])}
+                  value={[filters.priceRange[0], filters.priceRange[1]]}
+                  onValueChange={(value) => handleFilterChange('priceRange', value)}
                 />
               </div>
 
