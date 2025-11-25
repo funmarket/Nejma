@@ -5,8 +5,9 @@ import { signWalletMessage } from "@/lib/wallet/signMessage";
 import { connectWallet } from "@/lib/wallet/connectWallet";
 import { initializeFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import type { WalletProvider } from "./solanaWallet";
 
-export const loginWithWallet = async (provider: 'phantom' | 'solflare' | 'backpack') => {
+export const loginWithWallet = async (provider: WalletProvider) => {
   const { firestore, auth } = initializeFirebase();
   const functions = getFunctions();
 
@@ -17,8 +18,10 @@ export const loginWithWallet = async (provider: 'phantom' | 'solflare' | 'backpa
 
   const callable = httpsCallable(functions, "solanaLogin");
   
-  // The type casting here is necessary because the callable function's response data is `unknown`.
-  const { token } = (await callable({ publicKey, signature, message })).data as { token: string };
+  // The public key needs to be hex for the backend to decode it
+  const publicKeyHex = Buffer.from(publicKey, 'utf-8').toString('hex');
+
+  const { token } = (await callable({ publicKey: publicKeyHex, signature, message })).data as { token: string };
 
   // Firebase Login
   const userCredential = await signInWithCustomToken(auth, token);
