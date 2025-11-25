@@ -126,7 +126,7 @@ export default function MarketplaceClient({ items, categories, subcategories }: 
                 <TabsTrigger value="buy">Buy</TabsTrigger>
                 <TabsTrigger value="rent">Rent</TabsTrigger>
               </TabsList>
-              <Button onClick={() => {/* TODO: router.push('/marketplace/list') */}} >
+              <Button onClick={() => router.push('/marketplace/list')} >
                 <PlusCircle className="mr-2 h-4 w-4" /> List an Item
               </Button>
           </div>
