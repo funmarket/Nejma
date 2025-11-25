@@ -68,8 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error('Wallet connect failed', e);
       let errorMessage = 'Could not connect to the wallet. Please try again.';
-      if (e instanceof Error && e.message.includes('User rejected the request')) {
-        errorMessage = 'Wallet connection request was rejected.';
+      if (e instanceof Error) {
+        if(e.message.includes('User rejected the request')) {
+          errorMessage = 'Wallet connection request was rejected.';
+        } else if (e.message.includes('internal')) {
+            errorMessage = 'An internal error occurred. This could be a CORS issue or a problem with the authentication function. Please try again later.'
+        }
       }
       toast({
         title: 'Wallet Connection Failed',

@@ -12,7 +12,7 @@ export const loginWithWallet = async (provider: 'phantom' | 'solflare' | 'backpa
 
   const { publicKey } = await connectWallet(provider);
 
-  const message = `Login to Nejma\nWallet: ${publicKey}\nNonce: ${crypto.randomUUID()}`;
+  const message = `Login to Spotly\nWallet: ${publicKey}\nNonce: ${crypto.randomUUID()}`;
   const signature = await signWalletMessage(provider, message);
 
   const callable = httpsCallable(functions, "solanaLogin");
