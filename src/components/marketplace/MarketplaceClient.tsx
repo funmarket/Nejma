@@ -175,7 +175,7 @@ export default function MarketplaceClient({ items, categories, subcategories }: 
               <div className="col-span-full space-y-2">
                 <div className="flex justify-between text-sm">
                   <label>Price Range</label>
-                  <span>${filters.priceRange[0]} - ${filters.priceRange[1] === 1500 ? '1500+' : filters.priceRange[1]}</span>
+                  <span>${filters.priceRange[0]} - ${filters.priceRange[1] >= 1500 ? '1500+' : filters.priceRange[1]}</span>
                 </div>
                 <Slider
                   min={0}
