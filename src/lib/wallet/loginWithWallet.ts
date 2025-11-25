@@ -1,5 +1,5 @@
 'use client';
-import { getFunctions } from "firebase/functions";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { signWalletMessage } from "@/lib/wallet/signMessage";
 import { connectWallet } from "@/lib/wallet/connectWallet";
@@ -21,7 +21,7 @@ function getFunctionUrl(region: string, projectId: string, functionName: string)
 
 export const loginWithWallet = async (provider: WalletProvider) => {
   const { firestore, auth, firebaseApp } = initializeFirebase();
-  const functions = getFunctions(firebaseApp); // Pass app instance
+  const functions = getFunctions(firebaseApp, 'us-central1'); // Specify region
   
   const { publicKey } = await connectWallet(provider);
 
@@ -42,6 +42,7 @@ export const loginWithWallet = async (provider: WalletProvider) => {
 
   if (!response.ok) {
     const errorData = await response.json();
+    console.error("Firebase function error response:", errorData);
     throw new Error(errorData.error?.message || `Request failed with status ${response.status}`);
   }
 
