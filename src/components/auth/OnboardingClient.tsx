@@ -4,6 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import type { WalletProvider } from '@/lib/wallet/solanaWallet';
+
+const walletProviders = [
+  { name: 'Phantom', key: 'phantom' as WalletProvider },
+  { name: 'Solflare', key: 'solflare' as WalletProvider },
+  { name: 'Backpack', key: 'backpack' as WalletProvider },
+];
 
 function ChoiceButton({ label, subLabel, gradient, onClick }: { label: string, subLabel: string, gradient: string, onClick: () => void }) {
     return (
@@ -34,7 +41,15 @@ function ChoiceButton({ label, subLabel, gradient, onClick }: { label: string, s
     );
 }
 
-function WalletConnectPrompt({ onBack, onConnect }: { onBack: () => void, onConnect: () => void }) {
+function WalletConnectPrompt({ onBack, role }: { onBack: () => void, role: string }) {
+    const { connectWallet, loading } = useAuth();
+    const router = useRouter();
+
+    const handleConnect = async (provider: WalletProvider) => {
+        await connectWallet(provider);
+        router.push(`/create/${role}`);
+    };
+
     return (
         <div className="max-w-2xl w-full mx-auto">
             <div className="text-center mb-12">
@@ -42,17 +57,24 @@ function WalletConnectPrompt({ onBack, onConnect }: { onBack: () => void, onConn
                     Connect Your Wallet
                 </h1>
                 <p className="text-white/60 text-lg">
-                    Connect your wallet to create your account.
+                    Select a wallet to create your {role} account.
                 </p>
             </div>
             <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-3xl p-8 md:p-10 
             border border-white/10 shadow-[0_20px_60px_rgb(0,0,0,0.3)]">
-                <div className="flex flex-col items-center gap-6">
-                    <Button onClick={onConnect} size="lg" className="scale-110">Connect Wallet</Button>
-                    <p className="text-white/60 text-center text-sm">
-                        Click above to connect your Solana wallet (mock).
-                    </p>
-                    <Button onClick={onBack} variant="ghost" className="text-sm">
+                <div className="flex flex-col items-center gap-4">
+                    {walletProviders.map((p) => (
+                        <Button
+                            key={p.key}
+                            onClick={() => handleConnect(p.key)}
+                            size="lg"
+                            className="w-full max-w-xs font-bold"
+                            disabled={loading}
+                        >
+                            {loading ? 'Connecting...' : `Connect ${p.name}`}
+                        </Button>
+                    ))}
+                    <Button onClick={onBack} variant="ghost" className="text-sm mt-4">
                         Go Back
                     </Button>
                 </div>
@@ -63,7 +85,7 @@ function WalletConnectPrompt({ onBack, onConnect }: { onBack: () => void, onConn
 
 
 export default function OnboardingClient() {
-    const { userWallet, connectWallet } = useAuth();
+    const { userWallet } = useAuth();
     const router = useRouter();
     const [showWalletConnect, setShowWalletConnect] = useState<string | null>(null);
 
@@ -75,19 +97,12 @@ export default function OnboardingClient() {
         }
     };
     
-    const handleConnectAndRedirect = () => {
-        connectWallet();
-        if (showWalletConnect) {
-            router.push(`/create/${showWalletConnect}`);
-        }
-    };
-
     if (showWalletConnect) {
         return (
             <div className="min-h-screen bg-black text-white pt-20 pb-20 flex items-center justify-center px-4">
                 <WalletConnectPrompt 
+                    role={showWalletConnect}
                     onBack={() => setShowWalletConnect(null)}
-                    onConnect={handleConnectAndRedirect}
                 />
             </div>
         );

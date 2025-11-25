@@ -6,6 +6,13 @@ import AppShell from '@/components/layout/AppShell';
 import { checkOrCreateUser } from '@/lib/actions/user.actions';
 import { usePathname } from 'next/navigation';
 import { Button } from '../ui/button';
+import type { WalletProvider } from '@/lib/wallet/solanaWallet';
+
+const walletProviders = [
+  { name: 'Phantom', key: 'phantom' as WalletProvider },
+  { name: 'Solflare', key: 'solflare' as WalletProvider },
+  { name: 'Backpack', key: 'backpack' as WalletProvider },
+];
 
 export default function AuthHandler({ children }: { children: ReactNode }) {
   const { userWallet, loading: authLoading } = useAuth();
@@ -36,7 +43,7 @@ export default function AuthHandler({ children }: { children: ReactNode }) {
     ensureUserProfile();
   }, [userWallet, authLoading, showSplash]);
 
-  const isLoading = showSplash || (isSyncingProfile && userWallet);
+  const isLoading = showSplash || authLoading || (isSyncingProfile && userWallet);
   
   if (isLoading) {
       return <SplashScreen />;
@@ -52,7 +59,7 @@ export default function AuthHandler({ children }: { children: ReactNode }) {
 }
 
 function WalletConnectPrompt({ onBack }: { onBack: () => void }) {
-    const { connectWallet } = useAuth();
+    const { connectWallet, loading } = useAuth();
     return (
         <div className="min-h-screen bg-black text-white pt-20 pb-20 flex items-center justify-center px-4">
             <div className="max-w-2xl w-full mx-auto text-center">
@@ -63,11 +70,19 @@ function WalletConnectPrompt({ onBack }: { onBack: () => void }) {
                     Connect your wallet to access this feature.
                 </p>
                 <div className="bg-gray-900/80 rounded-3xl p-8 border border-white/10 shadow-lg">
-                    <div className="flex flex-col items-center gap-6">
-                        <Button onClick={connectWallet} size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold w-full max-w-xs">
-                            Connect Wallet (Mock)
-                        </Button>
-                        <Button onClick={onBack} variant="ghost">Go Back</Button>
+                    <div className="flex flex-col items-center gap-4">
+                        {walletProviders.map((p) => (
+                            <Button
+                                key={p.key}
+                                onClick={() => connectWallet(p.key)}
+                                size="lg"
+                                className="w-full max-w-xs font-bold"
+                                disabled={loading}
+                            >
+                                {loading ? 'Connecting...' : `Connect ${p.name}`}
+                            </Button>
+                        ))}
+                        <Button onClick={onBack} variant="ghost" className="mt-4">Go Back</Button>
                     </div>
                 </div>
             </div>

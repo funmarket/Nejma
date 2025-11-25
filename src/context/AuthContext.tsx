@@ -1,6 +1,13 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useEffect,
+  type ReactNode,
+} from 'react';
 import type { User } from '@/lib/types';
 import { getUserByWallet } from '@/lib/actions/user.actions';
 import { loginWithWallet } from '@/lib/wallet/loginWithWallet';
@@ -24,20 +31,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    setLoading(true);
+    // This effect can be simplified as we get the user from login
     const fetchUser = async () => {
       if (userWallet) {
+        setLoading(true);
         try {
           const user = await getUserByWallet(userWallet);
           setCurrentUser(user);
         } catch (error) {
-          console.error("Failed to fetch user:", error);
+          console.error('Failed to fetch user:', error);
           setCurrentUser(null);
+        } finally {
+          setLoading(false);
         }
       } else {
         setCurrentUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchUser();
@@ -48,20 +58,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const { publicKey } = await loginWithWallet(provider);
       setUserWallet(publicKey);
+      toast({
+        title: 'Wallet Connected',
+        description: `Successfully connected to wallet: ${publicKey.slice(
+          0,
+          4
+        )}...${publicKey.slice(-4)}`,
+      });
     } catch (e) {
-      console.error("Wallet connect failed", e);
+      console.error('Wallet connect failed', e);
+      let errorMessage = 'Could not connect to the wallet. Please try again.';
+      if (e instanceof Error && e.message.includes('User rejected the request')) {
+        errorMessage = 'Wallet connection request was rejected.';
+      }
       toast({
         title: 'Wallet Connection Failed',
-        description: 'Could not connect to the wallet. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
-      })
-    } finally {
+      });
+      // Ensure loading is false even on failure
       setLoading(false);
-    }
+    } 
+    // loading state will be updated by the useEffect fetching the user
   };
 
   const disconnectWallet = () => {
     setUserWallet(null);
+    setCurrentUser(null);
   };
 
   const value = useMemo(
