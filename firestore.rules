@@ -66,8 +66,8 @@ service cloud.firestore {
      * Checks if the authenticated user is the owner of an existing document
      * by looking at a specific field in the document's data.
      */
-    function isDocumentOwner(docData) {
-      return isSignedIn() && resource != null && request.auth.uid == docData.ownerId;
+    function isDocumentOwner(docData, fieldName) {
+      return isSignedIn() && resource != null && request.auth.uid == docData[fieldName];
     }
     
     
@@ -149,13 +149,11 @@ service cloud.firestore {
      * @allow (get) Any user can view the details of a tip transaction.
      * @allow (create) A signed-in user creates a new tip document.
      * @deny (update) No user can update a tip after it has been created.
-     * @principle Public read with create-only access for authenticated users. Lacks sender validation.
+     * @principle Public read with create-only access for authenticated users.
      */
     match /tips/{tipId} {
-      // CRITICAL: Cannot implement owner-only writes. The 'Tip' entity uses 'fromWallet' instead of a verifiable 'fromUserId'.
-      // This allows any signed-in user to create a tip, but they could spoof the 'fromWallet' field.
       allow get, list: if true;
-      allow create: if isSignedIn(); // TODO: Add validation once schema is updated with 'fromUserId == request.auth.uid'.
+      allow create: if isSignedIn() && request.resource.data.fromUserId == request.auth.uid;
       allow update: if false;
       allow delete: if false;
     }
@@ -198,27 +196,27 @@ service cloud.firestore {
      * @allow (get) Any user can view the record of a video view.
      * @allow (create) A signed-in user creates a new video view record.
      * @deny (delete) No one can delete a video view record.
-     * @principle Allows write access for any authenticated user for creating append-only logs. Lacks sender validation.
+     * @principle Allows write access for any authenticated user for creating append-only logs.
      */
     match /video_views/{videoViewId} {
-      // CRITICAL: Cannot validate ownership. The 'VideoView' entity uses 'viewerId' (a wallet address) which cannot be tied to auth.uid.
       allow get, list: if true;
-      allow create: if isSignedIn(); // TODO: Add validation once schema includes 'viewerUserId == request.auth.uid'.
+      allow create: if isSignedIn() && request.resource.data.viewerId == request.auth.uid;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Marketplace products are public. Writes are restricted until a proper ownership field is added.
+     * @description Marketplace products are public. Only the seller can manage their product.
      * @path /marketplace_products/{marketplaceProductId}
      * @allow (get) Anyone can view a marketplace product.
      * @deny (create) All write operations are currently blocked for security.
-     * @principle Public read access, with writes disabled due to an insecure schema.
+     * @principle Public read access, with owner-only writes.
      */
     match /marketplace_products/{marketplaceProductId} {
-      // CRITICAL: Cannot implement owner-only writes. The 'MarketplaceProduct' entity is missing an 'ownerId' or 'sellerId' field linked to auth.uid. It uses 'sellerWallet'.
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'sellerId') && isOwnerFieldImmutable('sellerId');
+      allow delete: if isDocumentOwner(resource.data, 'sellerId');
     }
 
     /**
@@ -232,53 +230,50 @@ service cloud.firestore {
     match /rentals/{rentalId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isDocumentOwner(resource.data) && isOwnerFieldImmutable('ownerId');
-      allow delete: if isDocumentOwner(resource.data);
+      allow update: if isDocumentOwner(resource.data, 'ownerId') && isOwnerFieldImmutable('ownerId');
+      allow delete: if isDocumentOwner(resource.data, 'ownerId');
     }
 
     /**
-     * @description Gossip posts are public. Writes are restricted until a proper ownership field is added.
+     * @description Gossip posts are public. Only the author can manage their post.
      * @path /gossip_posts/{gossipPostId}
      * @allow (get) Anyone can read a gossip post.
-     * @deny (create) All write operations are currently blocked for security.
-     * @principle Public read access, with writes disabled due to an insecure schema.
+     * @allow (create) Authenticated user creates a post, setting their own authorId.
+     * @principle Public read access, with owner-only writes.
      */
     match /gossip_posts/{gossipPostId} {
-      // CRITICAL: Cannot implement owner-only writes. The 'GossipPost' entity is missing an 'authorId' field linked to auth.uid. It uses 'authorWallet'.
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'authorId') && isOwnerFieldImmutable('authorId');
+      allow delete: if isDocumentOwner(resource.data, 'authorId');
     }
     
     /**
-     * @description Gossip comments are public. Any signed-in user can create a comment. Updates/deletes are disabled for security.
+     * @description Gossip comments are public. Only the author can manage their comment.
      * @path /gossip_comments/{gossipCommentId}
      * @allow (get) Anyone can read comments.
      * @allow (create) A signed-in user posts a new comment.
-     * @deny (update) No one can edit a comment after it's posted.
-     * @principle Public read access, with create-only writes for authenticated users. Lacks author validation.
+     * @principle Public read access, with owner-only writes.
      */
     match /gossip_comments/{gossipCommentId} {
-      // CRITICAL: Cannot implement owner-only writes. The 'GossipComment' entity uses 'authorWallet' instead of a verifiable 'authorId'.
       allow get, list: if true;
-      allow create: if isSignedIn(); // TODO: Add owner validation for update/delete once schema is updated with 'authorId'.
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'authorId') && isOwnerFieldImmutable('authorId');
+      allow delete: if isDocumentOwner(resource.data, 'authorId');
     }
     
     /**
-     * @description Gossip ratings are public. Any signed-in user can create a rating. Updates/deletes are disabled for security.
+     * @description Gossip ratings are public. A user can only manage their own rating.
      * @path /gossip_ratings/{gossipRatingId}
      * @allow (get) Anyone can read ratings.
-     * @allow (create) A signed-in user submits a new rating.
-     * @deny (update) No one can edit a rating after it's submitted.
-     * @principle Public read access, with create-only writes for authenticated users. Lacks author validation.
+     * @allow (create) A signed-in user submits a new rating, setting their own raterId.
+     * @principle Public read access, with owner-only writes.
      */
     match /gossip_ratings/{gossipRatingId} {
-      // CRITICAL: Cannot implement owner-only writes. The 'GossipRating' entity uses 'raterWallet' instead of a verifiable 'raterId'.
       allow get, list: if true;
-      allow create: if isSignedIn(); // TODO: Add owner validation for update/delete once schema is updated with 'raterId'.
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && request.resource.data.raterId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'raterId') && isOwnerFieldImmutable('raterId');
+      allow delete: if isDocumentOwner(resource.data, 'raterId');
     }
     
     /**
@@ -289,7 +284,6 @@ service cloud.firestore {
      * @principle Public read-only data. All client write access is forbidden.
      */
     match /gossip_service_ads/{gossipServiceAdId} {
-      // CRITICAL: The 'GossipServiceAd' entity is missing any ownership field (e.g., 'ownerId'). All writes are disallowed.
       allow get, list: if true;
       allow create: if false;
       allow update: if false;
@@ -297,37 +291,35 @@ service cloud.firestore {
     }
     
     /**
-     * @description Follow relationships can be created and deleted by any signed-in user.
+     * @description Follow relationships can be managed only by the follower.
      * @path /gossip_user_follows/{gossipUserFollowsId}
      * @allow (get) Anyone can view follow relationships.
-     * @allow (create) A signed-in user creates a follow relationship.
-     * @deny (update) Follow relationships cannot be updated, only deleted and recreated.
-     * @principle Allows authenticated users to manage relationship documents. Lacks creator validation.
+     * @allow (create) A signed-in user creates a follow relationship for themselves.
+     * @principle Allows authenticated users to manage their own relationship documents.
      */
     match /gossip_user_follows/{gossipUserFollowsId} {
-       // CRITICAL: Cannot validate ownership. 'followerWallet' cannot be tied to auth.uid. Any signed-in user can create/delete any follow record.
-       // This rule assumes the client will correctly manage document IDs to delete the correct one.
       allow get, list: if true;
-      allow create: if isSignedIn(); // TODO: Add validation so request.resource.data.followerId == request.auth.uid
+      allow create: if isSignedIn() && request.resource.data.followerId == request.auth.uid;
       allow update: if false;
-      allow delete: if isSignedIn() && resource != null; // TODO: Add validation so resource.data.followerId == request.auth.uid
+      allow delete: if isDocumentOwner(resource.data, 'followerId');
     }
     
     /**
-     * @description Gossip messages are private and disabled. The current data model is insecure for direct client access.
+     * @description Gossip messages are private and can only be read by the sender or receiver.
      * @path /gossip_messages/{gossipMessageId}
-     * @deny (get) No user can read any message.
-     * @deny (create) No user can create any message.
-     * @principle Disables access to a collection that cannot be secured with the current schema.
+     * @allow (get) The sender or receiver of a message can read it.
+     * @allow (create) The sender of a message can create it.
+     * @principle Enforces privacy for direct messages between two users.
      */
     match /gossip_messages/{gossipMessageId} {
-      // CRITICAL: This collection is entirely disabled. The use of 'fromWallet' and 'toWallet' without corresponding UIDs
-      // makes it impossible to securely determine who can read or write messages without performing extra reads, which is
-      // insecure and inefficient. The schema must be updated to include 'fromId' and 'toId' fields.
-      allow get, list: if false;
-      allow create: if false;
+      function isParticipant(docData) {
+        return isSignedIn() && (request.auth.uid == docData.fromId || request.auth.uid == docData.toId);
+      }
+      
+      allow get, list: if isParticipant(resource.data);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
       allow update: if false;
-      allow delete: if false;
+      allow delete: if isDocumentOwner(resource.data, 'fromId');
     }
 
   }

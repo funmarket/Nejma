@@ -233,9 +233,9 @@
           "type": "string",
           "description": "Unique identifier for the Tip entity."
         },
-        "fromWallet": {
+        "fromUserId": {
           "type": "string",
-          "description": "Wallet address of the user sending the tip."
+          "description": "User ID of the user sending the tip."
         },
         "toWallet": {
           "type": "string",
@@ -257,7 +257,7 @@
       },
       "required": [
         "id",
-        "fromWallet",
+        "fromUserId",
         "toWallet",
         "amount",
         "videoId"
@@ -354,7 +354,7 @@
         },
         "viewerId": {
           "type": "string",
-          "description": "Wallet Address of the user viewing the video."
+          "description": "User ID of the user viewing the video."
         }
       },
       "required": [
@@ -373,9 +373,9 @@
           "type": "string",
           "description": "Unique identifier for the MarketplaceProduct entity."
         },
-        "sellerWallet": {
+        "sellerId": {
           "type": "string",
-          "description": "Reference to User (Seller).  Wallet Address of the seller listing the product. (Relationship: User 1:N MarketplaceProduct)"
+          "description": "User ID of the seller listing the product."
         },
         "title": {
           "type": "string",
@@ -429,7 +429,7 @@
       },
       "required": [
         "id",
-        "sellerWallet",
+        "sellerId",
         "title",
         "description",
         "category",
@@ -515,9 +515,9 @@
           "type": "string",
           "description": "Unique identifier for the GossipPost entity."
         },
-        "authorWallet": {
+        "authorId": {
           "type": "string",
-          "description": "Reference to User. Wallet Address of the user who created the post. (Relationship: User 1:N GossipPost)"
+          "description": "User ID of the user who created the post."
         },
         "content": {
           "type": "string",
@@ -544,7 +544,7 @@
       },
       "required": [
         "id",
-        "authorWallet",
+        "authorId",
         "content",
         "category"
       ]
@@ -563,9 +563,9 @@
           "type": "string",
           "description": "Reference to GossipPost. (Relationship: GossipPost 1:N GossipComment)"
         },
-        "authorWallet": {
+        "authorId": {
           "type": "string",
-          "description": "Reference to User. Wallet Address of the user who created the comment. (Relationship: User 1:N GossipComment)"
+          "description": "User ID of the user who created the comment."
         },
         "content": {
           "type": "string",
@@ -575,7 +575,7 @@
       "required": [
         "id",
         "postId",
-        "authorWallet",
+        "authorId",
         "content"
       ]
     },
@@ -597,16 +597,16 @@
           "type": "number",
           "description": "Rating score given by the user (e.g., 1-5 stars)."
         },
-        "raterWallet": {
+        "raterId": {
           "type": "string",
-          "description": "Wallet Address of the user who rated the post."
+          "description": "User ID of the user who rated the post."
         }
       },
       "required": [
         "id",
         "postId",
         "score",
-        "raterWallet"
+        "raterId"
       ]
     },
     "GossipServiceAd": {
@@ -658,17 +658,18 @@
           "type": "string",
           "description": "Unique identifier for the GossipUserFollows entity."
         },
-        "followerWallet": {
+        "followerId": {
           "type": "string",
-          "description": "Wallet Address of the user who is following."
+          "description": "User ID of the user who is following."
         },
         "followingId": {
           "type": "string",
-          "description": "Wallet Address of the user who is being followed."
+          "description": "User ID of the user who is being followed."
         }
       },
       "required": [
         "id",
+        "followerId",
         "followingId"
       ]
     },
@@ -682,13 +683,13 @@
           "type": "string",
           "description": "Unique identifier for the GossipMessage entity."
         },
-        "fromWallet": {
+        "fromId": {
           "type": "string",
-          "description": "Wallet Address of the user sending the message."
+          "description": "User ID of the user sending the message."
         },
-        "toWallet": {
+        "toId": {
           "type": "string",
-          "description": "Wallet Address of the user receiving the message."
+          "description": "User ID of the user receiving the message."
         },
         "content": {
           "type": "string",
@@ -702,8 +703,8 @@
       },
       "required": [
         "id",
-        "fromWallet",
-        "toWallet",
+        "fromId",
+        "toId",
         "content"
       ]
     }
