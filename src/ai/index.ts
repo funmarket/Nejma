@@ -1,3 +1,5 @@
 'use server';
 
-export * from './flows/generate-bio-flow';
+import { generateBio } from './flows/generate-bio-flow';
+
+export { generateBio };
