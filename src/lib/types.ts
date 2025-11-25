@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'fan' | 'artist' | 'business' | 'regular';
 export type TalentCategory = 'music' | 'acting' | 'creator' | '';
 export type TalentSubcategory = string;

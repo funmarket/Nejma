@@ -1,4 +1,5 @@
-import type { User, Video } from './types';
+
+import type { User, Video, Bookmark, Tip, GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd } from './types';
 
 export const users: User[] = [
   {
@@ -157,3 +158,78 @@ export const videos: Video[] = [
 
 export const bookmarks: Bookmark[] = [];
 export const tips: Tip[] = [];
+
+export const gossipPosts: GossipPost[] = [
+    {
+      id: 'gp1',
+      authorWallet: 'artist_wallet_1',
+      content: 'Just dropped a new track! Feeling super excited about this one. Go check it out on my profile!',
+      category: 'announcement',
+      createdAt: Date.now() - 1000 * 60 * 30,
+      commentsCount: 2,
+    },
+    {
+      id: 'gp2',
+      authorWallet: 'artist_wallet_2',
+      content: 'Just wrapped up an amazing audition. Fingers crossed! 🤞 #actorlife',
+      imageUrl: 'https://picsum.photos/seed/audition/800/400',
+      category: 'achievement',
+      createdAt: Date.now() - 1000 * 60 * 60 * 2,
+      commentsCount: 1,
+    },
+    {
+      id: 'gp3',
+      authorWallet: 'fan_wallet_1',
+      content: 'Anyone have recommendations for up-and-coming digital artists? Looking for cool new NFTs.',
+      category: 'question',
+      createdAt: Date.now() - 1000 * 60 * 60 * 5,
+      commentsCount: 1,
+    },
+    {
+      id: 'gp4',
+      authorWallet: 'artist_wallet_3',
+      content: 'My latest art piece "Cybernetic Dreams" is now available as a limited edition print in the marketplace!',
+      imageUrl: 'https://picsum.photos/seed/cybernetic/800/400',
+      category: 'general',
+      createdAt: Date.now() - 1000 * 60 * 60 * 24,
+      commentsCount: 0,
+    },
+];
+
+export const gossipComments: GossipComment[] = [
+    { id: 'gc1', postId: 'gp1', authorWallet: 'fan_wallet_1', content: '🔥🔥🔥 This is a banger!', createdAt: Date.now() - 1000 * 60 * 25 },
+    { id: 'gc2', postId: 'gp1', authorWallet: 'artist_wallet_2', content: 'Sounds great, Luna!', createdAt: Date.now() - 1000 * 60 * 20 },
+    { id: 'gc3', postId: 'gp2', authorWallet: 'fan_wallet_1', content: 'You got this!!', createdAt: Date.now() - 1000 * 60 * 50 },
+    { id: 'gc4', postId: 'gp3', authorWallet: 'artist_wallet_3', content: 'You should check out my work! @Pixelated', createdAt: Date.now() - 1000 * 60 * 60 * 4 },
+];
+
+export const gossipRatings: GossipRating[] = [
+    { id: 'gr1', postId: 'gp1', raterWallet: 'fan_wallet_1', score: 5 },
+    { id: 'gr2', postId: 'gp1', raterWallet: 'artist_wallet_2', score: 4 },
+    { id: 'gr3', postId: 'gp2', raterWallet: 'fan_wallet_1', score: 5 },
+    { id: 'gr4', postId: 'gp3', raterWallet: 'artist_wallet_3', score: 4 },
+];
+
+export const gossipFollows: GossipUserFollows[] = [
+    { id: 'gf1', followerWallet: 'fan_wallet_1', followingWallet: 'artist_wallet_1' },
+    { id: 'gf2', followerWallet: 'fan_wallet_1', followingWallet: 'artist_wallet_3' },
+    { id: 'gf3', followerWallet: 'artist_wallet_2', followingWallet: 'artist_wallet_1' },
+];
+
+export const serviceAds: GossipServiceAd[] = [
+    {
+        id: 'ad1',
+        title: 'Pro Mix & Master Your Track',
+        description: 'Industry-standard mixing and mastering services for artists. Get that radio-ready sound. Fast turnaround, affordable rates.',
+        contactInfo: 'mixmasterpro@email.com',
+        imageUrl: 'https://picsum.photos/seed/mixing/800/200',
+        workLinks: 'https://example.com/portfolio'
+    },
+    {
+        id: 'ad2',
+        title: 'Custom Actor Headshots',
+        description: 'Professional headshots that get you noticed. Studio and outdoor sessions available. Look your best for casting directors.',
+        contactInfo: 'headshots@photo.com',
+        imageUrl: 'https://picsum.photos/seed/headshot/800/200',
+    }
+]
