@@ -2,13 +2,17 @@
 'use server';
 
 import { users, videos as mockVideos, gossipPosts as mockGossipPosts, gossipComments as mockGossipComments, gossipRatings as mockGossipRatings, gossipFollows as mockGossipFollows, serviceAds as mockServiceAds } from '@/lib/data';
-import type { GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd } from '@/lib/types';
+import type { GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd, User } from '@/lib/types';
 import { getUserByWallet } from './user.actions';
 
 // MOCK API for Gossip
 
 export async function listPosts(): Promise<GossipPost[]> {
   console.log("Fetching all gossip posts (mock)");
+  // Ensure commentsCount is accurate
+  mockGossipPosts.forEach(post => {
+    post.commentsCount = mockGossipComments.filter(c => c.postId === post.id).length;
+  });
   return JSON.parse(JSON.stringify(mockGossipPosts.sort((a, b) => b.createdAt - a.createdAt)));
 }
 
@@ -21,14 +25,14 @@ export async function createPost(postData: Omit<GossipPost, 'id' | 'commentsCoun
     createdAt: Date.now(),
   };
   mockGossipPosts.unshift(newPost);
-  return newPost;
+  return JSON.parse(JSON.stringify(newPost));
 }
 
 export async function updatePost(postId: string, updates: Partial<GossipPost>): Promise<GossipPost | null> {
     const postIndex = mockGossipPosts.findIndex(p => p.id === postId);
     if (postIndex === -1) return null;
     mockGossipPosts[postIndex] = { ...mockGossipPosts[postIndex], ...updates };
-    return mockGossipPosts[postIndex];
+    return JSON.parse(JSON.stringify(mockGossipPosts[postIndex]));
 }
 
 
@@ -51,7 +55,7 @@ export async function createComment(commentData: Omit<GossipComment, 'id' | 'cre
         post.commentsCount = (post.commentsCount || 0) + 1;
     }
 
-    return newComment;
+    return JSON.parse(JSON.stringify(newComment));
 }
 
 export async function deleteComment(commentId: string): Promise<{ success: boolean }> {
@@ -74,7 +78,7 @@ export async function ratePost(postId: string, raterWallet: string, score: numbe
     let existingRating = mockGossipRatings.find(r => r.postId === postId && r.raterWallet === raterWallet);
     if (existingRating) {
         existingRating.score = score;
-        return existingRating;
+        return JSON.parse(JSON.stringify(existingRating));
     } else {
         const newRating: GossipRating = {
             id: `grating${Date.now()}`,
@@ -83,7 +87,7 @@ export async function ratePost(postId: string, raterWallet: string, score: numbe
             score,
         };
         mockGossipRatings.push(newRating);
-        return newRating;
+        return JSON.parse(JSON.stringify(newRating));
     }
 }
 
@@ -104,13 +108,16 @@ export async function getUserFollows(followerWallet: string): Promise<GossipUser
 
 export async function followUser(followerWallet: string, followingWallet: string): Promise<GossipUserFollows> {
     console.log(`${followerWallet} is following ${followingWallet} (mock)`);
+    const existingFollow = mockGossipFollows.find(f => f.followerWallet === followerWallet && f.followingWallet === followingWallet);
+    if (existingFollow) return JSON.parse(JSON.stringify(existingFollow));
+    
     const newFollow: GossipUserFollows = {
         id: `follow${Date.now()}`,
         followerWallet,
         followingWallet,
     };
     mockGossipFollows.push(newFollow);
-    return newFollow;
+    return JSON.parse(JSON.stringify(newFollow));
 }
 
 export async function unfollowUser(followerWallet: string, followingWallet: string): Promise<{ success: boolean }> {

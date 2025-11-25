@@ -37,10 +37,9 @@ export function useGossipFeed() {
   const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
-      const [postsData, adsData, followsData] = await Promise.all([
+      const [postsData, adsData] = await Promise.all([
         listPosts(),
         listServiceAds(),
-        userWallet ? getUserFollows(userWallet) : Promise.resolve([]),
       ]);
       
       const authorsData = await getGossipAuthors(postsData);
@@ -49,13 +48,14 @@ export function useGossipFeed() {
       setPosts(postsData);
       setAds(adsData);
 
-      const followsMap = followsData.reduce((acc, follow) => {
-        acc[follow.followingWallet] = true;
-        return acc;
-      }, {} as Record<string, boolean>);
-      setUserFollows(followsMap);
-      
       if (userWallet) {
+        const followsData = await getUserFollows(userWallet);
+        const followsMap = followsData.reduce((acc, follow) => {
+            acc[follow.followingWallet] = true;
+            return acc;
+        }, {} as Record<string, boolean>);
+        setUserFollows(followsMap);
+
         const allRatingsMap: Record<string, GossipRating[]> = {};
         const userRatingsMap: Record<string, number> = {};
         for (const post of postsData) {
@@ -68,6 +68,10 @@ export function useGossipFeed() {
         }
         setRatings(allRatingsMap);
         setUserPostRatings(userRatingsMap);
+      } else {
+        setUserFollows({});
+        setUserPostRatings({});
+        setRatings({});
       }
 
     } catch (error) {
@@ -88,7 +92,7 @@ export function useGossipFeed() {
 
   const toggleComments = async (postId: string) => {
     setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }));
-    if (!comments[postId]) {
+    if (!comments[postId] && !expandedComments[postId]) {
       const commentsData = await listComments(postId);
       setComments(prev => ({ ...prev, [postId]: commentsData }));
     }
@@ -99,19 +103,42 @@ export function useGossipFeed() {
         toast({ title: 'Please connect your wallet to comment', variant: 'destructive' });
         return;
     }
-    await apiCreateComment({ postId, content, authorWallet: userWallet });
-    // Refresh comments for the post
-    const commentsData = await listComments(postId);
-    setComments(prev => ({ ...prev, [postId]: commentsData }));
-    // Refresh post to update comment count
+    const optimisticComment: GossipComment = {
+        id: `temp-${Date.now()}`,
+        postId,
+        authorWallet: userWallet,
+        content,
+        createdAt: Date.now()
+    }
+    // Optimistic update
+    setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), optimisticComment]}));
     setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 0) + 1} : p));
+
+    try {
+        await apiCreateComment({ postId, content, authorWallet: userWallet });
+        // Refresh comments for the post to get real data
+        const commentsData = await listComments(postId);
+        setComments(prev => ({ ...prev, [postId]: commentsData }));
+    } catch(e) {
+        toast({title: 'Failed to post comment', variant: 'destructive'});
+        // Revert
+        setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== optimisticComment.id)}));
+        setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
+    }
   };
   
   const handleDeleteComment = async (commentId: string, postId: string) => {
-    await apiDeleteComment(commentId);
-     const commentsData = await listComments(postId);
-    setComments(prev => ({ ...prev, [postId]: commentsData }));
-     setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
+    const originalComments = comments[postId];
+    // Optimistic delete
+    setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
+    setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
+    try {
+        await apiDeleteComment(commentId);
+    } catch(e) {
+        toast({title: 'Failed to delete comment', variant: 'destructive'});
+        setComments(prev => ({...prev, [postId]: originalComments}));
+        setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 0)} : p));
+    }
   };
 
 
@@ -120,10 +147,25 @@ export function useGossipFeed() {
         toast({ title: 'Please connect your wallet to rate', variant: 'destructive' });
         return;
     }
-    await apiRatePost(postId, userWallet, score);
-    const ratingsData = await getRatings(postId);
-    setRatings(prev => ({ ...prev, [postId]: ratingsData }));
+    const originalRating = userPostRatings[postId];
+    const originalRatings = ratings[postId];
+
+    // Optimistic update
     setUserPostRatings(prev => ({ ...prev, [postId]: score }));
+    const newRatings = (ratings[postId] || []).filter(r => r.raterWallet !== userWallet);
+    newRatings.push({id: 'temp', postId, raterWallet: userWallet, score});
+    setRatings(prev => ({ ...prev, [postId]: newRatings }));
+    
+    try {
+        await apiRatePost(postId, userWallet, score);
+        const updatedRatingsData = await getRatings(postId);
+        setRatings(prev => ({ ...prev, [postId]: updatedRatingsData }));
+    } catch (e) {
+        toast({title: "Failed to submit rating", variant: 'destructive'});
+        // Revert
+        setUserPostRatings(prev => ({ ...prev, [postId]: originalRating }));
+        setRatings(prev => ({ ...prev, [postId]: originalRatings }));
+    }
   };
 
   const toggleFollow = async (followingWallet: string) => {
