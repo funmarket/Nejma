@@ -1,0 +1,966 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile in the system.  Handles the authentication.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "walletAddress": {
+          "type": "string",
+          "description": "The user's wallet address, used for authentication and linking to blockchain accounts."
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's chosen username or display name."
+        },
+        "bio": {
+          "type": "string",
+          "description": "A short biography or description of the user."
+        },
+        "skills": {
+          "type": "string",
+          "description": "A comma-separated list of the user's skills."
+        },
+        "tags": {
+          "type": "string",
+          "description": "A comma-separated list of tags associated with the user."
+        },
+        "location": {
+          "type": "string",
+          "description": "The user's location (e.g., city, country)."
+        },
+        "profilePhotoUrl": {
+          "type": "string",
+          "description": "URL of the user's profile photo.",
+          "format": "uri"
+        },
+        "bannerPhotoUrl": {
+          "type": "string",
+          "description": "URL of the user's banner photo.",
+          "format": "uri"
+        },
+        "socialLinks": {
+          "type": "string",
+          "description": "JSON string containing links to the user's social media profiles."
+        },
+        "extraLinks": {
+          "type": "string",
+          "description": "JSON string containing additional links the user wants to display."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role (e.g., fan, artist, business)."
+        },
+        "subRole": {
+          "type": "string",
+          "description": "A more specific role or subcategory for the user (e.g., singer, actor). Applies mainly to artists."
+        },
+        "talentCategory": {
+          "type": "string",
+          "description": "The main category of the user's talent (e.g., music, acting, creator). Applies mainly to artists."
+        },
+        "talentSubcategories": {
+          "type": "string",
+          "description": "JSON string containing an array of subcategories for the user's talent. Applies mainly to artists."
+        },
+        "rankingScore": {
+          "type": "number",
+          "description": "A score representing the user's ranking or popularity."
+        },
+        "escrowBalance": {
+          "type": "number",
+          "description": "The user's balance in the escrow system."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of when the user profile was last updated.",
+          "format": "date-time"
+        },
+        "isBanned": {
+          "type": "boolean",
+          "description": "Indicates whether the user is banned."
+        },
+        "isDeleted": {
+          "type": "boolean",
+          "description": "Indicates whether the user is deleted."
+        },
+        "isSuspended": {
+          "type": "boolean",
+          "description": "Indicates whether the user is suspended."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier for the User entity. (Redundant, consider removing if 'id' is sufficient)"
+        }
+      },
+      "required": [
+        "id",
+        "walletAddress",
+        "username"
+      ]
+    },
+    "Video": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Video",
+      "type": "object",
+      "description": "Represents a video submitted by an artist.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Video entity."
+        },
+        "artistId": {
+          "type": "string",
+          "description": "Reference to User (Artist). (Relationship: User 1:N Video)"
+        },
+        "rawVideoInput": {
+          "type": "string",
+          "description": "Raw video URL or embed code provided by the artist."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the video."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the video (e.g., music, acting)."
+        },
+        "topCount": {
+          "type": "number",
+          "description": "Number of 'top' votes the video has received."
+        },
+        "flopCount": {
+          "type": "number",
+          "description": "Number of 'flop' votes the video has received."
+        },
+        "views": {
+          "type": "number",
+          "description": "Number of views the video has received."
+        },
+        "bookmarks": {
+          "type": "number",
+          "description": "Number of times the video has been bookmarked."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the video was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of when the video was last updated.",
+          "format": "date-time"
+        },
+        "rankingScore": {
+          "type": "number",
+          "description": "A score representing the video's ranking."
+        },
+        "isBanned": {
+          "type": "boolean",
+          "description": "Indicates whether the video is banned."
+        },
+        "hiddenFromFeed": {
+          "type": "boolean",
+          "description": "Indicates whether the video is hidden from the feed."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Unique identifier for the Video entity. (Redundant, consider removing if 'id' is sufficient)"
+        },
+        "bookCount": {
+          "type": "number",
+          "description": "Number of times the video has been booked."
+        },
+        "adoptCount": {
+          "type": "number",
+          "description": "Number of times the video/artist has been adopted."
+        },
+        "status": {
+          "type": "string",
+          "description": "The video status."
+        }
+      },
+      "required": [
+        "id",
+        "artistId",
+        "rawVideoInput",
+        "description",
+        "category"
+      ]
+    },
+    "Bookmark": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bookmark",
+      "type": "object",
+      "description": "Represents a user's bookmark of a video.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Bookmark entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Bookmark)"
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Reference to Video. (Relationship: Video 1:N Bookmark)"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "videoId"
+      ]
+    },
+    "Tip": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tip",
+      "type": "object",
+      "description": "Represents a tip given by a user to an artist.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Tip entity."
+        },
+        "fromWallet": {
+          "type": "string",
+          "description": "Wallet address of the user sending the tip."
+        },
+        "toWallet": {
+          "type": "string",
+          "description": "Wallet address of the artist receiving the tip."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the tip."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Reference to Video. (Relationship: Video 1:N Tip)"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the tip was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "fromWallet",
+        "toWallet",
+        "amount",
+        "videoId"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a booking request from a business to an artist.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Booking entity."
+        },
+        "artistId": {
+          "type": "string",
+          "description": "Reference to User (Artist). (Relationship: User 1:N Booking)"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to User (Business). (Relationship: User 1:N Booking)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message from the business to the artist."
+        },
+        "baseAmount": {
+          "type": "number",
+          "description": "The base amount offered for the booking."
+        }
+      },
+      "required": [
+        "id",
+        "artistId",
+        "businessId",
+        "message",
+        "baseAmount"
+      ]
+    },
+    "Adoption": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Adoption",
+      "type": "object",
+      "description": "Represents an adoption of an artist by a business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Adoption entity."
+        },
+        "artistId": {
+          "type": "string",
+          "description": "Reference to User (Artist). (Relationship: User 1:N Adoption)"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to User (Business). (Relationship: User 1:N Adoption)"
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Reference to Video. (Relationship: Video 1:N Adoption)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message from the business to the artist."
+        },
+        "baseAmount": {
+          "type": "number",
+          "description": "The base amount offered for the adoption."
+        }
+      },
+      "required": [
+        "id",
+        "artistId",
+        "businessId",
+        "videoId",
+        "message",
+        "baseAmount"
+      ]
+    },
+    "VideoView": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VideoView",
+      "type": "object",
+      "description": "Represents a view of a video by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VideoView entity."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Reference to Video. (Relationship: Video 1:N VideoView)"
+        },
+        "viewerId": {
+          "type": "string",
+          "description": "Wallet Address of the user viewing the video."
+        }
+      },
+      "required": [
+        "id",
+        "videoId",
+        "viewerId"
+      ]
+    },
+    "MarketplaceProduct": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketplaceProduct",
+      "type": "object",
+      "description": "Represents a product listed on the marketplace.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MarketplaceProduct entity."
+        },
+        "sellerWallet": {
+          "type": "string",
+          "description": "Reference to User (Seller).  Wallet Address of the seller listing the product. (Relationship: User 1:N MarketplaceProduct)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the product."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the product (e.g., music, acting)."
+        },
+        "subcategory": {
+          "type": "string",
+          "description": "Subcategory of the product (e.g., instruments, costumes)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency of the product's price (e.g., SOL, USDT)."
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condition of the product (e.g., new, used)."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the product."
+        },
+        "images": {
+          "type": "string",
+          "description": "JSON string containing an array of image URLs for the product."
+        },
+        "stock": {
+          "type": "number",
+          "description": "Number of items in stock."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the product was created.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The product status."
+        }
+      },
+      "required": [
+        "id",
+        "sellerWallet",
+        "title",
+        "description",
+        "category",
+        "subcategory",
+        "price",
+        "currency",
+        "condition"
+      ]
+    },
+    "Rental": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Rental",
+      "type": "object",
+      "description": "Represents an item available for rent on the marketplace.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Rental entity."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to User (Owner).  Wallet Address of the owner listing the rental. (Relationship: User 1:N Rental)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the rental item."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the rental item."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the rental item (e.g., music, acting)."
+        },
+        "subCategory": {
+          "type": "string",
+          "description": "Subcategory of the rental item (e.g., instruments, costumes)."
+        },
+        "pricePerDay": {
+          "type": "number",
+          "description": "Price per day for renting the item."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the rental item."
+        },
+        "availability": {
+          "type": "string",
+          "description": "Availability information for the rental item."
+        },
+        "images": {
+          "type": "string",
+          "description": "JSON string containing an array of image URLs for the rental item."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the rental listing was created.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The rental status."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "description",
+        "category",
+        "subCategory",
+        "pricePerDay"
+      ]
+    },
+    "GossipPost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipPost",
+      "type": "object",
+      "description": "Represents a post on the gossip feed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipPost entity."
+        },
+        "authorWallet": {
+          "type": "string",
+          "description": "Reference to User. Wallet Address of the user who created the post. (Relationship: User 1:N GossipPost)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the post."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of an image attached to the post.",
+          "format": "uri"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the post (e.g., general, announcement)."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the post was created.",
+          "format": "date-time"
+        },
+        "commentsCount": {
+          "type": "number",
+          "description": "Number of comments on the post."
+        }
+      },
+      "required": [
+        "id",
+        "authorWallet",
+        "content",
+        "category"
+      ]
+    },
+    "GossipComment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipComment",
+      "type": "object",
+      "description": "Represents a comment on a gossip post.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipComment entity."
+        },
+        "postId": {
+          "type": "string",
+          "description": "Reference to GossipPost. (Relationship: GossipPost 1:N GossipComment)"
+        },
+        "authorWallet": {
+          "type": "string",
+          "description": "Reference to User. Wallet Address of the user who created the comment. (Relationship: User 1:N GossipComment)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the comment."
+        }
+      },
+      "required": [
+        "id",
+        "postId",
+        "authorWallet",
+        "content"
+      ]
+    },
+    "GossipRating": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipRating",
+      "type": "object",
+      "description": "Represents a user's rating of a gossip post.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipRating entity."
+        },
+        "postId": {
+          "type": "string",
+          "description": "Reference to GossipPost. (Relationship: GossipPost 1:N GossipRating)"
+        },
+        "score": {
+          "type": "number",
+          "description": "Rating score given by the user (e.g., 1-5 stars)."
+        },
+        "raterWallet": {
+          "type": "string",
+          "description": "Wallet Address of the user who rated the post."
+        }
+      },
+      "required": [
+        "id",
+        "postId",
+        "score",
+        "raterWallet"
+      ]
+    },
+    "GossipServiceAd": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipServiceAd",
+      "type": "object",
+      "description": "Represents a service advertisement on the gossip feed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipServiceAd entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the service advertisement."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the service being advertised."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of an image attached to the advertisement.",
+          "format": "uri"
+        },
+        "contactInfo": {
+          "type": "string",
+          "description": "Contact information for the service provider."
+        },
+        "workLinks": {
+          "type": "string",
+          "description": "Links to the service provider's work or portfolio.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description"
+      ]
+    },
+    "GossipUserFollows": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipUserFollows",
+      "type": "object",
+      "description": "Represents the follow relationship between two users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipUserFollows entity."
+        },
+        "followerWallet": {
+          "type": "string",
+          "description": "Wallet Address of the user who is following."
+        },
+        "followingId": {
+          "type": "string",
+          "description": "Wallet Address of the user who is being followed."
+        }
+      },
+      "required": [
+        "id",
+        "followingId"
+      ]
+    },
+    "GossipMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GossipMessage",
+      "type": "object",
+      "description": "Represents a message between two users on the Gossip tab.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GossipMessage entity."
+        },
+        "fromWallet": {
+          "type": "string",
+          "description": "Wallet Address of the user sending the message."
+        },
+        "toWallet": {
+          "type": "string",
+          "description": "Wallet Address of the user receiving the message."
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the message."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of when the message was created",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "fromWallet",
+        "toWallet",
+        "content"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data. Includes fields like walletAddress, username, bio, and role. The 'userId' is a document ID for easy access and management.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/videos/{videoId}",
+        "definition": {
+          "entityName": "Video",
+          "schema": {
+            "$ref": "#/backend/entities/Video"
+          },
+          "description": "Stores video data. Includes artistId, rawVideoInput, description, category, and counts for 'top', 'flop', views, and bookmarks. The 'artistId' is denormalized for QAPs.",
+          "params": [
+            {
+              "name": "videoId",
+              "description": "The unique identifier of the video document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/bookmarks/{bookmarkId}",
+        "definition": {
+          "entityName": "Bookmark",
+          "schema": {
+            "$ref": "#/backend/entities/Bookmark"
+          },
+          "description": "Stores user's video bookmarks. The userId is from auth.uid, and videoId references the bookmarked video. This path enforces path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user document."
+            },
+            {
+              "name": "bookmarkId",
+              "description": "The unique identifier of the bookmark document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/tips/{tipId}",
+        "definition": {
+          "entityName": "Tip",
+          "schema": {
+            "$ref": "#/backend/entities/Tip"
+          },
+          "description": "Stores tip data.  Wallet addresses for the user sending the tip, and for the artist receiving the tip, are stored here, as well as amount and videoId",
+          "params": [
+            {
+              "name": "tipId",
+              "description": "The unique identifier of the tip document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores booking request data.  includes artistId, businessId, message and baseAmount",
+          "params": [
+            {
+              "name": "bookingId",
+              "description": "The unique identifier of the booking document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/adoptions/{adoptionId}",
+        "definition": {
+          "entityName": "Adoption",
+          "schema": {
+            "$ref": "#/backend/entities/Adoption"
+          },
+          "description": "Stores adoption data. Includes artistId, businessId, videoId, message, and baseAmount.",
+          "params": [
+            {
+              "name": "adoptionId",
+              "description": "The unique identifier of the adoption document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/video_views/{videoViewId}",
+        "definition": {
+          "entityName": "VideoView",
+          "schema": {
+            "$ref": "#/backend/entities/VideoView"
+          },
+          "description": "Stores video view data. Includes videoId and viewerWallet.",
+          "params": [
+            {
+              "name": "videoViewId",
+              "description": "The unique identifier of the videoView document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/marketplace_products/{marketplaceProductId}",
+        "definition": {
+          "entityName": "MarketplaceProduct",
+          "schema": {
+            "$ref": "#/backend/entities/MarketplaceProduct"
+          },
+          "description": "Stores marketplace product data. Includes sellerWallet, title, description, category, subcategory, price, currency, and condition. sellerWallet is used for QAPs and ownership.",
+          "params": [
+            {
+              "name": "marketplaceProductId",
+              "description": "The unique identifier of the marketplaceProduct document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/rentals/{rentalId}",
+        "definition": {
+          "entityName": "Rental",
+          "schema": {
+            "$ref": "#/backend/entities/Rental"
+          },
+          "description": "Stores rental item data. Includes ownerId, title, description, category, subCategory, pricePerDay, and availability. The 'ownerId' field enables QAPs.",
+          "params": [
+            {
+              "name": "rentalId",
+              "description": "The unique identifier of the rental document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_posts/{gossipPostId}",
+        "definition": {
+          "entityName": "GossipPost",
+          "schema": {
+            "$ref": "#/backend/entities/GossipPost"
+          },
+          "description": "Stores gossip post data. Includes authorWallet, content, imageUrl, and category. The 'authorWallet' field supports QAPs and ownership.",
+          "params": [
+            {
+              "name": "gossipPostId",
+              "description": "The unique identifier of the gossipPost document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_comments/{gossipCommentId}",
+        "definition": {
+          "entityName": "GossipComment",
+          "schema": {
+            "$ref": "#/backend/entities/GossipComment"
+          },
+          "description": "Stores gossip comment data. Includes postId, authorWallet, and content.",
+          "params": [
+            {
+              "name": "gossipCommentId",
+              "description": "The unique identifier of the gossipComment document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_ratings/{gossipRatingId}",
+        "definition": {
+          "entityName": "GossipRating",
+          "schema": {
+            "$ref": "#/backend/entities/GossipRating"
+          },
+          "description": "Stores gossip rating data. Includes postId, score, and raterWallet.",
+          "params": [
+            {
+              "name": "gossipRatingId",
+              "description": "The unique identifier of the gossipRating document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_service_ads/{gossipServiceAdId}",
+        "definition": {
+          "entityName": "GossipServiceAd",
+          "schema": {
+            "$ref": "#/backend/entities/GossipServiceAd"
+          },
+          "description": "Stores gossip service advertisement data. Includes title, description, imageUrl, contactInfo, and workLinks.",
+          "params": [
+            {
+              "name": "gossipServiceAdId",
+              "description": "The unique identifier of the gossipServiceAd document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_user_follows/{gossipUserFollowsId}",
+        "definition": {
+          "entityName": "GossipUserFollows",
+          "schema": {
+            "$ref": "#/backend/entities/GossipUserFollows"
+          },
+          "description": "Stores follow relationships between users. followerWallet, and followingId.",
+          "params": [
+            {
+              "name": "gossipUserFollowsId",
+              "description": "The unique identifier of the gossipUserFollows document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gossip_messages/{gossipMessageId}",
+        "definition": {
+          "entityName": "GossipMessage",
+          "schema": {
+            "$ref": "#/backend/entities/GossipMessage"
+          },
+          "description": "Stores messages between users in the gossip tab. 'fromWallet' and 'toWallet' contain addresses of the users involved in the transaction, and content and createdAt timestamps.",
+          "params": [
+            {
+              "name": "gossipMessageId",
+              "description": "The unique identifier of the gossipMessage document."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure prioritizes authorization independence and QAPs. The key strategy is denormalization. For instance, the `videos` collection denormalizes `artistId` which facilitates secure list operations. The `bookmarks` collection is structured under the user's document (`/users/{userId}/bookmarks/{bookmarkId}`), ensuring that only the authenticated user can manage their bookmarks.  The `gossip_posts` collection includes the `authorWallet` field, allowing for secure filtering of posts based on the author's identity. This design avoids complex `get()` calls in security rules, simplifying authorization and improving performance. DBAC is achieved by relying solely on `request.auth.uid` and storing roles directly in the `users` collection."
+  }
+}
