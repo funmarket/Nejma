@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, Sparkles } from 'lucide-react';
 import { updateUser } from '@/lib/actions/user.actions';
-import GenerateBio from '@/components/profile/GenerateBio';
 
 interface UserProfileProps {
   profileUser: User;
@@ -127,14 +126,6 @@ export default function UserProfile({ profileUser, videos }: UserProfileProps) {
                      <div className='space-y-2'>
                         <div className="flex justify-between items-center">
                             <Label>Bio</Label>
-                            <GenerateBio
-                              onBioGenerated={(bio) => setFormData({ ...formData, bio })}
-                              currentValues={{
-                                role: user.role || 'user',
-                                skills: user.skills || user.talentSubcategories?.join(', ') || '',
-                                interests: user.tags || '',
-                              }}
-                            />
                         </div>
                         <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} rows={4} />
                     </div>

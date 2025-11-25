@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createUser, updateUser, getUserByWallet } from '@/lib/actions/user.actions';
-import GenerateBio from '@/components/profile/GenerateBio';
 import type { TalentCategory, UserRole } from '@/lib/types';
 import { TALENT_CATEGORIES } from '@/lib/constants';
 
@@ -184,7 +183,6 @@ export default function CreateProfileForm({ accountType }: CreateProfileFormProp
             <div>
               <div className="flex justify-between items-center mb-2">
                 <Label htmlFor="bio">Bio</Label>
-                <GenerateBio onBioGenerated={(bio) => setFormData({ ...formData, bio })} currentValues={{skills: '', interests: '', role: formData.talentCategory || accountType}}/>
               </div>
               <Textarea id="bio" value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself..." />
             </div>
