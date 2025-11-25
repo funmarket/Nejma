@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { MessageCircle, Trash2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
 
 function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitComment }: { 
@@ -101,7 +101,12 @@ export default function GossipFeed() {
   
   const feedItems: JSX.Element[] = [];
 
-  posts.forEach((post, index) => {
+  const filteredPosts = feedFilter === 'following'
+    ? posts.filter(post => userFollows[post.authorWallet])
+    : posts;
+
+
+  filteredPosts.forEach((post, index) => {
     feedItems.push(
       <div key={post.id} className="bg-muted/50 rounded-xl border border-border">
           <PostCard
@@ -146,7 +151,7 @@ export default function GossipFeed() {
       </div>
       <div className="space-y-4">
         {feedItems}
-        {!loading && posts.length === 0 && (
+        {!loading && filteredPosts.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
               {feedFilter === 'following' ? 'No posts from users you follow.' : 'No posts yet. Be the first!'}

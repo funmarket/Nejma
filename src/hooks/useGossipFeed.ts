@@ -191,12 +191,8 @@ export function useGossipFeed() {
     }
   };
 
-  const filteredPosts = feedFilter === 'following'
-    ? posts.filter(post => userFollows[post.authorWallet])
-    : posts;
-
   return {
-    posts: filteredPosts,
+    posts,
     authors,
     ads,
     loading,
