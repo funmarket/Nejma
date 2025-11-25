@@ -3,23 +3,25 @@
 import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
 import type { User } from '@/lib/types';
 import { getUserByWallet } from '@/lib/actions/user.actions';
+import { loginWithWallet } from '@/lib/wallet/loginWithWallet';
+import type { WalletProvider } from '@/lib/wallet/solanaWallet';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   userWallet: string | null;
   currentUser: User | null;
-  connectWallet: () => void;
+  connectWallet: (provider: WalletProvider) => Promise<void>;
   disconnectWallet: () => void;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const MOCK_WALLET_ADDRESS = "artist_wallet_1";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userWallet, setUserWallet] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -41,10 +43,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, [userWallet]);
 
-  const connectWallet = () => {
-    // In a real app, this would involve a wallet adapter like Phantom or Solflare.
-    // Here, we just set a mock wallet address.
-    setUserWallet(MOCK_WALLET_ADDRESS);
+  const connectWallet = async (provider: WalletProvider) => {
+    try {
+      setLoading(true);
+      const { publicKey } = await loginWithWallet(provider);
+      setUserWallet(publicKey);
+    } catch (e) {
+      console.error("Wallet connect failed", e);
+      toast({
+        title: 'Wallet Connection Failed',
+        description: 'Could not connect to the wallet. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false);
+    }
   };
 
   const disconnectWallet = () => {
