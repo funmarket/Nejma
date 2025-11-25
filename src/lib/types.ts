@@ -1,3 +1,4 @@
+
 export type UserRole = 'fan' | 'artist' | 'business' | 'regular';
 export type TalentCategory = 'music' | 'acting' | 'creator' | '';
 export type TalentSubcategory = string;
@@ -77,4 +78,44 @@ export interface Tip {
   amount: number;
   videoId: string;
   createdAt: number;
+}
+
+export interface GossipPost {
+  id: string;
+  authorWallet: string;
+  content: string;
+  imageUrl?: string;
+  category: string;
+  createdAt: number;
+  commentsCount: number;
+}
+
+export interface GossipComment {
+    id: string;
+    postId: string;
+    authorWallet: string;
+    content: string;
+    createdAt: number;
+}
+
+export interface GossipRating {
+    id: string;
+    postId: string;
+    raterWallet: string;
+    score: number;
+}
+
+export interface GossipServiceAd {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl?: string;
+    contactInfo?: string;
+    workLinks?: string;
+}
+
+export interface GossipUserFollows {
+    id: string;
+    followerWallet: string;
+    followingWallet: string;
 }
