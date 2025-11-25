@@ -3,22 +3,13 @@
  * @fileOverview This file defines the AI flow for generating a user bio.
  *
  * It includes:
- * - `GenerateBioInputSchema`: The Zod schema for the input.
- * - `GenerateBioInput`: The TypeScript type inferred from the schema.
  * - `generateBio`: The main exported function that runs the AI flow.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { GenerateBioInputSchema, type GenerateBioInput } from './generate-bio.types';
 
-// Define the schema for the input of the bio generation flow.
-// This ensures that the input data is in the correct format.
-export const GenerateBioInputSchema = z.object({
-  role: z.string().describe('The role of the user (e.g., artist, fan, creator).'),
-  skills: z.string().describe('A comma-separated list of the user\'s skills or talents.'),
-  interests: z.string().describe('A comma-separated list of the user\'s interests or artistic style.'),
-});
-export type GenerateBioInput = z.infer<typeof GenerateBioInputSchema>;
 
 /**
  * An asynchronous function that takes user input and returns a generated bio.

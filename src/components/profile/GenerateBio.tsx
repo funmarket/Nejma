@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { generateBio } from '@/ai';
+import type { GenerateBioInput } from '@/ai/flows/generate-bio.types';
 
 interface GenerateBioProps {
   onBioGenerated: (bio: string) => void;
