@@ -13,7 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, Sparkles, Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { updateUser } from '@/lib/actions/user.actions';
-import GenerateBio from './GenerateBio';
 
 interface UserProfileProps {
   profileUser: User;
@@ -128,14 +127,6 @@ export default function UserProfile({ profileUser, videos }: UserProfileProps) {
                      <div className='space-y-2'>
                         <div className="flex justify-between items-center">
                             <Label>Bio</Label>
-                            <GenerateBio 
-                                onBioGenerated={(bio) => setFormData({...formData, bio})} 
-                                currentValues={{
-                                    role: user.role,
-                                    skills: user.skills,
-                                    interests: user.tags
-                                }}
-                            />
                         </div>
                         <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} rows={4} />
                     </div>
