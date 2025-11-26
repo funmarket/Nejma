@@ -1,0 +1,206 @@
+"use client";
+
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import Image from 'next/image';
+import { useDevapp } from '@/components/providers/devapp-provider';
+import { useToast } from '@/components/providers/toast-provider';
+import { devbaseHelpers } from '@/lib/nejma/helpers';
+import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap } from 'lucide-react';
+import { sanitizeUrl } from '@/lib/nejma/youtube';
+
+const socialIcons: Record<string, React.ElementType> = {
+    youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
+    instagram: Instagram, tiktok: Music, website: Globe,
+};
+
+export function PublicProfilePage() {
+    const params = useParams();
+    const username = params.username as string;
+    const { devbaseClient, user: currentUser } = useDevapp();
+    const router = useRouter();
+    const { addToast } = useToast();
+
+    const [user, setUser] = useState<any>(null);
+    const [videos, setVideos] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState(false);
+    const [formData, setFormData] = useState<any>({});
+    const [showExtraLinks, setShowExtraLinks] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const isOwnProfile = currentUser && user && currentUser.uid === user.walletAddress;
+
+    const loadProfile = async () => {
+        if (!devbaseClient) return;
+        setLoading(true);
+        const userData = await devbaseHelpers.getUserByUsername(devbaseClient, username);
+        if (userData) {
+            setUser(userData);
+            setFormData(userData);
+            const userVideos = await devbaseHelpers.getVideosForArtist(devbaseClient, userData.userId || userData.id);
+            setVideos(userVideos);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        loadProfile();
+    }, [devbaseClient, username]);
+
+    const handleSave = async () => {
+        if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
+        
+        try {
+            const updatedData = { ...formData, bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl), profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl) };
+            await devbaseClient.updateEntity('users', user.id, updatedData);
+            setUser({ ...user, ...updatedData });
+            setEditing(false);
+            addToast('Profile updated successfully!', 'success');
+            if(formData.username !== username) {
+                router.push(`/u/${formData.username}`);
+            }
+        } catch (error) {
+            addToast('Failed to update profile', 'error');
+        }
+    };
+    
+    const handleDeleteProfile = async () => {
+        if (!devbaseClient || !user) return;
+        try {
+            await devbaseClient.deleteEntity('users', user.id);
+            addToast('Profile deleted successfully', 'success');
+            router.push('/onboarding');
+        } catch (error) {
+            addToast('Failed to delete profile', 'error');
+        }
+    };
+    
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center"><p>Loading profile...</p></div>;
+    }
+    if (!user) {
+        return <div className="min-h-screen flex items-center justify-center"><p>User not found</p></div>;
+    }
+
+    const socialLinks = user.socialLinks ? JSON.parse(user.socialLinks) : {};
+    const extraLinks = user.extraLinks ? JSON.parse(user.extraLinks) : [];
+
+    const renderSocialLinks = () => (
+        <div className="flex flex-wrap gap-2">
+            {Object.entries(socialLinks).filter(([,url])=>url).map(([key, url]) => {
+                const Icon = socialIcons[key];
+                return <a key={key} href={url as string} target="_blank" rel="noopener noreferrer" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/20 transition-colors"><Icon className="w-5 h-5" /></a>;
+            })}
+            {extraLinks.map((link:any, idx:number) => (
+                <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs border border-transparent hover:text-foreground hover:bg-primary/20 transition-all">
+                    {link.label || link.url}
+                </a>
+            ))}
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-background pb-20">
+            <Card className="max-w-4xl mx-auto rounded-none sm:rounded-b-2xl border-x-0 border-t-0 sm:border-x sm:border-b">
+                <div className="relative w-full aspect-[3/1] bg-gradient-to-r from-primary to-pink-500">
+                    {user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
+                    {isOwnProfile && !editing && (
+                        <div className="absolute top-4 right-4 flex gap-2">
+                            <Button onClick={() => setEditing(true)} size="sm">Edit Profile</Button>
+                        </div>
+                    )}
+                     {isOwnProfile && editing && (
+                        <div className="absolute top-4 right-4 flex gap-2">
+                            <Button onClick={() => setEditing(false)} variant="secondary" size="sm">Cancel</Button>
+                            <Button onClick={handleSave} size="sm">Save</Button>
+                        </div>
+                    )}
+                </div>
+                <CardContent className="p-4 sm:p-6">
+                    <div className="relative">
+                        <div className="absolute -top-16 sm:-top-20">
+                            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary flex items-center justify-center text-white font-bold border-4 border-card overflow-hidden shadow-lg">
+                                {user.profilePhotoUrl ? <Image src={user.profilePhotoUrl} alt={user.username} width={128} height={128} className="w-full h-full object-cover" /> : <span className="text-4xl">{user.username?.[0]?.toUpperCase()}</span>}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-10 sm:mt-16">
+                        {editing ? <Input value={formData.username} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" /> : <h1 className="text-2xl font-bold">@{user.username}</h1>}
+                        
+                        <div className="flex flex-wrap gap-2 my-3">
+                            <span className="px-3 py-1 rounded-full bg-primary/20 text-primary font-medium text-sm border border-primary/50 capitalize">{user.role}</span>
+                            {user.talentCategory && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium text-sm capitalize">{user.talentCategory}</span>}
+                        </div>
+                        
+                        {editing ? <Textarea value={formData.bio} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base" /> : <p className="text-muted-foreground whitespace-pre-wrap">{user.bio}</p>}
+                    </div>
+
+                    {(Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && !editing && <div className="mt-6">{renderSocialLinks()}</div>}
+
+                </CardContent>
+            </Card>
+
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8">
+                <h2 className="font-bold text-xl mb-4">Videos</h2>
+                {videos.length === 0 ? (
+                    <Card className="p-12 bg-card text-center border-dashed">
+                        <p className="text-muted-foreground">No videos yet</p>
+                    </Card>
+                ) : (
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {videos.map(video => (
+                            <Card key={video.id} className="p-4 hover:border-primary transition-all">
+                                <div className="aspect-video bg-muted rounded-lg mb-3 flex items-center justify-center">
+                                    <Sparkles className="w-12 h-12 text-primary" />
+                                </div>
+                                <p className="font-semibold mb-2 line-clamp-2">{video.description}</p>
+                                <div className="flex gap-4 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1"><Zap className="w-4 h-4" /> {video.topCount || 0}</span>
+                                    <span>{video.views || 0} views</span>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {editing && (
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8">
+                     <Card className="bg-card p-6 border-destructive/50">
+                        <h3 className="text-destructive font-bold mb-3">Danger Zone</h3>
+                        <p className="text-muted-foreground text-sm mb-4">Deleting your profile is permanent and will remove all your data and videos.</p>
+                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete Profile</Button>
+                    </Card>
+                </div>
+            )}
+            
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Are you absolutely sure?</DialogTitle>
+                        <DialogDescription>
+                            This action cannot be undone. This will permanently delete your account and remove your data from our servers.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={handleDeleteProfile}>Yes, Delete Everything</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+        </div>
+    );
+}
