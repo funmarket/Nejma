@@ -12,15 +12,16 @@ import { MessageCircle, Trash2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useState } from 'react';
 import { Textarea } from '../ui/textarea';
+import type { User } from '@/lib/types';
 
 function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitComment }: { 
     postId: string, 
     comments: any[], 
-    authors: Record<string, any>,
+    authors: Record<string, User>,
     onDeleteComment: (commentId: string, postId: string) => void,
     onSubmitComment: (postId: string, content: string) => void,
 }) {
-    const { userWallet } = useAuth();
+    const { currentUser } = useAuth();
     const [newComment, setNewComment] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -33,25 +34,28 @@ function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitC
     
     return (
         <div className="bg-muted/30 border-t border-border mt-4 p-4 space-y-4">
-            {comments.map(comment => (
-                <div key={comment.id} className="flex gap-3">
-                    <Avatar className="w-8 h-8">
-                        <AvatarImage src={authors[comment.authorWallet]?.profilePhotoUrl} />
-                        <AvatarFallback>{authors[comment.authorWallet]?.username[0]?.toUpperCase() || 'A'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                            <p className="font-bold text-sm">@{authors[comment.authorWallet]?.username || 'anonymous'}</p>
-                            {userWallet === comment.authorWallet && (
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteComment(comment.id, postId)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            )}
+            {comments.map(comment => {
+                const author = authors[comment.authorId];
+                return (
+                    <div key={comment.id} className="flex gap-3">
+                        <Avatar className="w-8 h-8">
+                            <AvatarImage src={author?.profilePhotoUrl} />
+                            <AvatarFallback>{author?.username?.[0]?.toUpperCase() || 'A'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                                <p className="font-bold text-sm">@{author?.username || 'anonymous'}</p>
+                                {currentUser?.userId === comment.authorId && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteComment(comment.id, postId)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{comment.content}</p>
                         </div>
-                        <p className="text-sm text-muted-foreground">{comment.content}</p>
                     </div>
-                </div>
-            ))}
+                )
+            })}
              <form onSubmit={handleSubmit} className="flex gap-2 items-center">
                 <Textarea 
                     value={newComment}
@@ -69,6 +73,7 @@ function CommentsSection({ postId, comments, authors, onDeleteComment, onSubmitC
 }
 
 export default function GossipFeed() {
+  const { currentUser } = useAuth();
   const {
     posts,
     ads,
@@ -102,21 +107,22 @@ export default function GossipFeed() {
   const feedItems: JSX.Element[] = [];
 
   const filteredPosts = feedFilter === 'following'
-    ? posts.filter(post => userFollows[post.authorWallet])
+    ? posts.filter(post => post.authorId && userFollows[post.authorId])
     : posts;
 
 
   filteredPosts.forEach((post, index) => {
+    const author = post.authorId ? authors[post.authorId] : null;
     feedItems.push(
       <div key={post.id} className="bg-muted/50 rounded-xl border border-border">
           <PostCard
             post={post}
-            author={authors[post.authorWallet]}
+            author={author}
             onCommentClick={toggleComments}
             onRate={ratePost}
             ratings={ratings}
             onFollow={toggleFollow}
-            isFollowing={!!userFollows[post.authorWallet]}
+            isFollowing={!!(author && userFollows[author.userId])}
             userRating={userPostRatings[post.id] || 0}
             commentsCount={post.commentsCount || 0}
           />
@@ -145,7 +151,7 @@ export default function GossipFeed() {
         <Button onClick={() => setFeedFilter('all')} variant={feedFilter === 'all' ? 'default' : 'secondary'} className="flex-1">
           All Posts
         </Button>
-        <Button onClick={() => setFeedFilter('following')} variant={feedFilter === 'following' ? 'default' : 'secondary'} className="flex-1">
+        <Button onClick={() => setFeedFilter('following')} variant={feedFilter === 'following' ? 'default' : 'secondary'} className="flex-1" disabled={!currentUser}>
           Following
         </Button>
       </div>

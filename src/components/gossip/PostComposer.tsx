@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { sanitizeUrl } from '@/lib/utils';
 
 export default function PostComposer({ onPostCreated }: { onPostCreated: () => void }) {
-  const { userWallet } = useAuth();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -19,7 +19,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated: () => v
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!userWallet) {
+    if (!currentUser) {
       toast({ title: 'Please connect your wallet to post.', variant: 'destructive' });
       return;
     }
@@ -42,7 +42,8 @@ export default function PostComposer({ onPostCreated }: { onPostCreated: () => v
         content: content.trim(),
         imageUrl: sanitizedImageUrl,
         category,
-        authorWallet: userWallet,
+        authorId: currentUser.userId,
+        authorWallet: currentUser.walletAddress,
       });
       setContent('');
       setImageUrl('');
@@ -83,7 +84,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated: () => v
             <SelectItem value="question">Question</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={handleSubmit} disabled={!content.trim() || submitting || !userWallet}>
+        <Button onClick={handleSubmit} disabled={!content.trim() || submitting || !currentUser}>
           {submitting ? 'Posting...' : 'Post'}
         </Button>
       </div>

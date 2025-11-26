@@ -3,7 +3,7 @@
 
 import { users, videos as mockVideos, gossipPosts, gossipComments, gossipRatings, gossipFollows, serviceAds } from '@/lib/data';
 import type { GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd, User } from '@/lib/types';
-import { getUserByWallet } from './user.actions';
+import { getUserByWallet, getUserById } from './user.actions';
 
 // MOCK API for Gossip
 
@@ -21,6 +21,7 @@ export async function createPost(postData: Omit<GossipPost, 'id' | 'commentsCoun
   const newPost: GossipPost = {
     id: `gpost${Date.now()}`,
     ...postData,
+    authorWallet: 'deprecated', // This field is no longer primary for auth
     commentsCount: 0,
     createdAt: Date.now(),
   };
@@ -46,6 +47,7 @@ export async function createComment(commentData: Omit<GossipComment, 'id' | 'cre
     const newComment: GossipComment = {
         id: `gcomment${Date.now()}`,
         ...commentData,
+        authorWallet: 'deprecated',
         createdAt: Date.now(),
     };
     gossipComments.push(newComment);
@@ -73,9 +75,9 @@ export async function deleteComment(commentId: string): Promise<{ success: boole
 }
 
 
-export async function ratePost(postId: string, raterWallet: string, score: number): Promise<GossipRating> {
-    console.log(`Rating post ${postId} by ${raterWallet} with score ${score} (mock)`);
-    let existingRating = gossipRatings.find(r => r.postId === postId && r.raterWallet === raterWallet);
+export async function ratePost(postId: string, raterId: string, score: number): Promise<GossipRating> {
+    console.log(`Rating post ${postId} by ${raterId} with score ${score} (mock)`);
+    let existingRating = gossipRatings.find(r => r.postId === postId && r.raterId === raterId);
     if (existingRating) {
         existingRating.score = score;
         return JSON.parse(JSON.stringify(existingRating));
@@ -83,8 +85,9 @@ export async function ratePost(postId: string, raterWallet: string, score: numbe
         const newRating: GossipRating = {
             id: `grating${Date.now()}`,
             postId,
-            raterWallet,
+            raterId,
             score,
+            raterWallet: 'deprecated'
         };
         gossipRatings.push(newRating);
         return JSON.parse(JSON.stringify(newRating));
@@ -101,28 +104,30 @@ export async function listServiceAds(): Promise<GossipServiceAd[]> {
     return JSON.parse(JSON.stringify(serviceAds));
 }
 
-export async function getUserFollows(followerWallet: string): Promise<GossipUserFollows[]> {
-    console.log(`Fetching follows for user ${followerWallet} (mock)`);
-    return JSON.parse(JSON.stringify(gossipFollows.filter(f => f.followerWallet === followerWallet)));
+export async function getUserFollows(followerId: string): Promise<GossipUserFollows[]> {
+    console.log(`Fetching follows for user ${followerId} (mock)`);
+    return JSON.parse(JSON.stringify(gossipFollows.filter(f => f.followerId === followerId)));
 }
 
-export async function followUser(followerWallet: string, followingWallet: string): Promise<GossipUserFollows> {
-    console.log(`${followerWallet} is following ${followingWallet} (mock)`);
-    const existingFollow = gossipFollows.find(f => f.followerWallet === followerWallet && f.followingWallet === followingWallet);
+export async function followUser(followerId: string, followingId: string): Promise<GossipUserFollows> {
+    console.log(`${followerId} is following ${followingId} (mock)`);
+    const existingFollow = gossipFollows.find(f => f.followerId === followerId && f.followingId === followingId);
     if (existingFollow) return JSON.parse(JSON.stringify(existingFollow));
     
     const newFollow: GossipUserFollows = {
         id: `follow${Date.now()}`,
-        followerWallet,
-        followingWallet,
+        followerId,
+        followingId,
+        followerWallet: 'deprecated',
+        followingWallet: 'deprecated',
     };
     gossipFollows.push(newFollow);
     return JSON.parse(JSON.stringify(newFollow));
 }
 
-export async function unfollowUser(followerWallet: string, followingWallet: string): Promise<{ success: boolean }> {
-    console.log(`${followerWallet} is unfollowing ${followingWallet} (mock)`);
-    const index = gossipFollows.findIndex(f => f.followerWallet === followerWallet && f.followingWallet === followingWallet);
+export async function unfollowUser(followerId: string, followingId: string): Promise<{ success: boolean }> {
+    console.log(`${followerId} is unfollowing ${followingId} (mock)`);
+    const index = gossipFollows.findIndex(f => f.followerId === followerId && f.followingId === followingId);
     if (index > -1) {
         gossipFollows.splice(index, 1);
         return { success: true };
@@ -130,17 +135,31 @@ export async function unfollowUser(followerWallet: string, followingWallet: stri
     return { success: false };
 }
 
-export async function getGossipAuthors(items: { authorWallet: string }[]): Promise<Record<string, User>> {
-  const authorWallets = [...new Set(items.map(p => p.authorWallet))];
+export async function getGossipAuthors(items: { authorId?: string, authorWallet?: string }[]): Promise<Record<string, User>> {
+  const authorIds = [...new Set(items.map(p => p.authorId).filter(Boolean))];
   const authorsMap: Record<string, User> = {};
 
-  for (const wallet of authorWallets) {
-    if (!authorsMap[wallet]) {
-      const user = await getUserByWallet(wallet);
+  for (const id of authorIds) {
+    if (id && !authorsMap[id]) {
+      // In a real app, you'd have a single function like `getUser`
+      // For this mock, we have to try both id and wallet
+      const user = await getUserById(id)
       if (user) {
-        authorsMap[wallet] = user;
+        authorsMap[id] = user;
       }
     }
   }
+
+  // Legacy support for wallet-based authors during transition
+  const authorWallets = [...new Set(items.map(p => p.authorWallet).filter(Boolean))];
+  for (const wallet of authorWallets) {
+     if (wallet && !Object.values(authorsMap).find(u => u.walletAddress === wallet)) {
+       const user = await getUserByWallet(wallet);
+       if (user) {
+         authorsMap[user.userId] = user;
+       }
+     }
+  }
+  
   return authorsMap;
 }

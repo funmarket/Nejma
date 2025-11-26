@@ -37,19 +37,21 @@ export default function PostCard({
     userRating,
     commentsCount,
 }: PostCardProps) {
-  const { userWallet } = useAuth();
+  const { currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleFollow = () => {
-    if (!userWallet) {
+    if (!currentUser) {
       toast({ title: 'Please connect your wallet to follow users', variant: 'destructive' });
       return;
     }
-    if (post.authorWallet === userWallet) {
+    if (author?.userId === currentUser.userId) {
       return;
     }
-    onFollow(post.authorWallet);
+    if (author?.userId) {
+        onFollow(author.userId);
+    }
   };
   
   const categoryVariant = (category: string) => {
@@ -77,7 +79,7 @@ export default function PostCard({
             <Badge variant={categoryVariant(post.category)} className="capitalize">{post.category}</Badge>
           </div>
         </div>
-        {userWallet && post.authorWallet !== userWallet && (
+        {currentUser && author && currentUser.userId !== author.userId && (
            <Button onClick={handleFollow} size="sm">
              {isFollowing ? 'Following' : 'Follow'}
            </Button>

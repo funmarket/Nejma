@@ -20,7 +20,7 @@ import type { GossipPost, GossipComment, GossipRating, GossipUserFollows, Gossip
 import { useToast } from './use-toast';
 
 export function useGossipFeed() {
-  const { userWallet } = useAuth();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   
   const [posts, setPosts] = useState<GossipPost[]>([]);
@@ -48,10 +48,10 @@ export function useGossipFeed() {
       setPosts(postsData);
       setAds(adsData);
 
-      if (userWallet) {
-        const followsData = await getUserFollows(userWallet);
+      if (currentUser) {
+        const followsData = await getUserFollows(currentUser.userId);
         const followsMap = followsData.reduce((acc, follow) => {
-            acc[follow.followingWallet] = true;
+            acc[follow.followingId] = true;
             return acc;
         }, {} as Record<string, boolean>);
         setUserFollows(followsMap);
@@ -61,7 +61,7 @@ export function useGossipFeed() {
         for (const post of postsData) {
           const postAllRatings = await getRatings(post.id);
           allRatingsMap[post.id] = postAllRatings;
-          const userRating = postAllRatings.find(r => r.raterWallet === userWallet);
+          const userRating = postAllRatings.find(r => r.raterId === currentUser.userId);
           if (userRating) {
             userRatingsMap[post.id] = userRating.score;
           }
@@ -80,7 +80,7 @@ export function useGossipFeed() {
     } finally {
       setLoading(false);
     }
-  }, [userWallet, toast]);
+  }, [currentUser, toast]);
 
   useEffect(() => {
     loadFeed();
@@ -91,39 +91,41 @@ export function useGossipFeed() {
   }, [loadFeed]);
 
   const toggleComments = async (postId: string) => {
-    setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }));
-    if (!comments[postId] && !expandedComments[postId]) {
+    const isExpanded = !!expandedComments[postId];
+    setExpandedComments(prev => ({ ...prev, [postId]: !isExpanded }));
+    
+    // Fetch comments only if they haven't been fetched before and we are expanding.
+    if (!comments[postId] && !isExpanded) {
       const commentsData = await listComments(postId);
-      const commentAuthors = await getGossipAuthors(commentsData.map(c => ({...c, authorWallet: c.authorWallet, content: '', category: '', createdAt: 0, commentsCount: 0})))
+      const commentAuthors = await getGossipAuthors(commentsData.map(c => ({...c, authorId: c.authorId })));
       setAuthors(prev => ({ ...prev, ...commentAuthors}));
       setComments(prev => ({ ...prev, [postId]: commentsData }));
     }
   };
 
+
   const submitComment = async (postId: string, content: string) => {
-    if (!userWallet) {
-        toast({ title: 'Please connect your wallet to comment', variant: 'destructive' });
+    if (!currentUser) {
+        toast({ title: 'Please log in to comment', variant: 'destructive' });
         return;
     }
     const optimisticComment: GossipComment = {
         id: `temp-${Date.now()}`,
         postId,
-        authorWallet: userWallet,
+        authorId: currentUser.userId,
+        authorWallet: currentUser.walletAddress, // Keep for author display fallback
         content,
         createdAt: Date.now()
     }
-    // Optimistic update
     setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), optimisticComment]}));
     setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 0) + 1} : p));
 
     try {
-        await apiCreateComment({ postId, content, authorWallet: userWallet });
-        // Refresh comments for the post to get real data
+        await apiCreateComment({ postId, content, authorId: currentUser.userId });
         const commentsData = await listComments(postId);
         setComments(prev => ({ ...prev, [postId]: commentsData }));
     } catch(e) {
         toast({title: 'Failed to post comment', variant: 'destructive'});
-        // Revert
         setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== optimisticComment.id)}));
         setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
     }
@@ -131,7 +133,6 @@ export function useGossipFeed() {
   
   const handleDeleteComment = async (commentId: string, postId: string) => {
     const originalComments = comments[postId];
-    // Optimistic delete
     setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
     setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
     try {
@@ -139,54 +140,52 @@ export function useGossipFeed() {
     } catch(e) {
         toast({title: 'Failed to delete comment', variant: 'destructive'});
         setComments(prev => ({...prev, [postId]: originalComments}));
-        setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 0)} : p));
+        setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 1)} : p));
     }
   };
 
 
   const ratePost = async (postId: string, score: number) => {
-     if (!userWallet) {
-        toast({ title: 'Please connect your wallet to rate', variant: 'destructive' });
+     if (!currentUser) {
+        toast({ title: 'Please log in to rate', variant: 'destructive' });
         return;
     }
     const originalRating = userPostRatings[postId];
     const originalRatings = ratings[postId];
 
-    // Optimistic update
     setUserPostRatings(prev => ({ ...prev, [postId]: score }));
-    const newRatings = (ratings[postId] || []).filter(r => r.raterWallet !== userWallet);
-    newRatings.push({id: 'temp', postId, raterWallet: userWallet, score});
+    const newRatings = (ratings[postId] || []).filter(r => r.raterId !== currentUser.userId);
+    newRatings.push({id: 'temp', postId, raterId: currentUser.userId, raterWallet: currentUser.walletAddress, score});
     setRatings(prev => ({ ...prev, [postId]: newRatings }));
     
     try {
-        await apiRatePost(postId, userWallet, score);
+        await apiRatePost(postId, currentUser.userId, score);
         const updatedRatingsData = await getRatings(postId);
         setRatings(prev => ({ ...prev, [postId]: updatedRatingsData }));
     } catch (e) {
         toast({title: "Failed to submit rating", variant: 'destructive'});
-        // Revert
         setUserPostRatings(prev => ({ ...prev, [postId]: originalRating }));
         setRatings(prev => ({ ...prev, [postId]: originalRatings }));
     }
   };
 
-  const toggleFollow = async (followingWallet: string) => {
-    if (!userWallet) {
-        toast({ title: 'Please connect your wallet to follow users', variant: 'destructive' });
+  const toggleFollow = async (followingId: string) => {
+    if (!currentUser) {
+        toast({ title: 'Please log in to follow users', variant: 'destructive' });
         return;
     }
-    const isCurrentlyFollowing = !!userFollows[followingWallet];
-    setUserFollows(prev => ({...prev, [followingWallet]: !isCurrentlyFollowing})); // Optimistic update
+    const isCurrentlyFollowing = !!userFollows[followingId];
+    setUserFollows(prev => ({...prev, [followingId]: !isCurrentlyFollowing}));
     try {
         if(isCurrentlyFollowing) {
-            await unfollowUser(userWallet, followingWallet);
+            await unfollowUser(currentUser.userId, followingId);
             toast({ title: `Unfollowed` });
         } else {
-            await followUser(userWallet, followingWallet);
+            await followUser(currentUser.userId, followingId);
             toast({ title: `Followed` });
         }
     } catch (error) {
-        setUserFollows(prev => ({...prev, [followingWallet]: isCurrentlyFollowing})); // Revert
+        setUserFollows(prev => ({...prev, [followingId]: isCurrentlyFollowing}));
         toast({ title: 'Failed to update follow status', variant: 'destructive' });
     }
   };

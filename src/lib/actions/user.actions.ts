@@ -1,3 +1,4 @@
+
 "use server";
 
 import { users } from "@/lib/data";
@@ -7,6 +8,11 @@ import type { User } from "@/lib/types";
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
   const user = users.find(u => u.walletAddress === walletAddress && !u.isDeleted);
+  return user ? { ...user } : null;
+}
+
+export async function getUserById(userId: string): Promise<User | null> {
+  const user = users.find(u => u.userId === userId && !u.isDeleted);
   return user ? { ...user } : null;
 }
 

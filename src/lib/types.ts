@@ -83,7 +83,8 @@ export interface Tip {
 
 export interface GossipPost {
   id: string;
-  authorWallet: string;
+  authorId: string;
+  authorWallet: string; // Legacy/denormalized for display, not for auth
   content: string;
   imageUrl?: string;
   category: string;
@@ -94,7 +95,8 @@ export interface GossipPost {
 export interface GossipComment {
     id: string;
     postId: string;
-    authorWallet: string;
+    authorId: string;
+    authorWallet: string; // Legacy/denormalized for display
     content: string;
     createdAt: number;
 }
@@ -102,7 +104,8 @@ export interface GossipComment {
 export interface GossipRating {
     id: string;
     postId: string;
-    raterWallet: string;
+    raterId: string;
+    raterWallet: string; // Legacy/denormalized for display
     score: number;
 }
 
@@ -117,6 +120,8 @@ export interface GossipServiceAd {
 
 export interface GossipUserFollows {
     id: string;
-    followerWallet: string;
-    followingWallet: string;
+    followerId: string;
+    followingId: string;
+    followerWallet: string; // Legacy for display
+    followingWallet: string; // Legacy for display
 }
