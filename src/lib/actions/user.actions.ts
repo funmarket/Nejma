@@ -1,5 +1,5 @@
 
-"use server";
+'use server';
 
 import { users } from "@/lib/data";
 import type { User } from "@/lib/types";
@@ -26,34 +26,35 @@ export async function getActiveUsers(): Promise<User[]> {
 }
 
 export async function checkOrCreateUser(walletAddress: string): Promise<User> {
+    console.log("Checking for user with wallet:", walletAddress);
   let user = await getUserByWallet(walletAddress);
   if (!user) {
-    console.log(`Creating new user profile for wallet: ${walletAddress}`);
+    console.log(`Creating new user for wallet: ${walletAddress}`);
     const newUser: User = {
-      id: (users.length + 1).toString(),
-      userId: (users.length + 1).toString(),
+      id: `user-${Date.now()}`,
+      userId: `user-${Date.now()}`,
       walletAddress: walletAddress,
-      username: `User_${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`,
+      username: `user_${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`,
       bio: '',
       role: 'regular',
       rankingScore: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    // In a real app, you would save this to the database.
-    // Here we just log it. The mock data is static.
-    console.log("New user created (mock):", newUser);
+    users.push(newUser); // Add to our mock DB
     return newUser;
   }
+  console.log("User found:", user.username);
   return user;
 }
 
 
 export async function createUser(profileData: Partial<User> & { walletAddress: string }): Promise<User> {
   console.log("Creating user (mock):", profileData);
+  const newId = `user-${Date.now()}`;
   const newUser: User = {
-    id: (users.length + 1).toString(),
-    userId: (users.length + 1).toString(),
+    id: newId,
+    userId: newId,
     username: 'NewUser',
     rankingScore: 0,
     createdAt: Date.now(),
@@ -61,6 +62,7 @@ export async function createUser(profileData: Partial<User> & { walletAddress: s
     ...profileData,
     role: profileData.role || 'fan', // ensure role is set
   };
+  users.push(newUser);
   return newUser;
 }
 
@@ -69,13 +71,16 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   const userIndex = users.findIndex(u => u.userId === userId);
   if (userIndex === -1) return null;
   
-  // This would update the database in a real app.
-  // Here, we just return what the updated user would look like.
-  const updatedUser = { ...users[userIndex], ...updates, updatedAt: Date.now() };
-  return updatedUser;
+  users[userIndex] = { ...users[userIndex], ...updates, updatedAt: Date.now() };
+  return users[userIndex];
 }
 
 export async function deleteUser(userId: string): Promise<{ success: boolean }> {
     console.log(`Deleting user ${userId} (mock)`);
-    return { success: true };
+    const userIndex = users.findIndex(u => u.userId === userId);
+    if(userIndex > -1) {
+        users.splice(userIndex, 1);
+        return { success: true };
+    }
+    return { success: false };
 }

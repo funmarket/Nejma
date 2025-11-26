@@ -1,11 +1,23 @@
 'use client';
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable, HttpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { signWalletMessage } from "@/lib/wallet/signMessage";
 import { connectWallet } from "@/lib/wallet/connectWallet";
 import { initializeFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { WalletProvider } from "./solanaWallet";
+
+const PROVIDER_KEY = 'spotly_wallet_provider';
+
+export function setProvider(provider: WalletProvider) {
+    localStorage.setItem(PROVIDER_KEY, provider);
+}
+export function getProvider(): WalletProvider | null {
+    return localStorage.getItem(PROVIDER_KEY) as WalletProvider | null;
+}
+export function clearProvider() {
+    localStorage.removeItem(PROVIDER_KEY);
+}
 
 export const loginWithWallet = async (provider: WalletProvider) => {
   const { firestore, auth } = initializeFirebase();
@@ -27,8 +39,10 @@ export const loginWithWallet = async (provider: WalletProvider) => {
     const userCredential = await signInWithCustomToken(auth, token);
     const user = userCredential.user;
 
+    // Use the user's UID (which is the public key) as the document ID
     await setDoc(doc(firestore, "users", user.uid), {
-      walletAddress: publicKey,
+      walletAddress: publicKey, // The base58 public key
+      userId: user.uid,
       provider,
       updatedAt: Date.now(),
     }, { merge: true });
@@ -38,7 +52,7 @@ export const loginWithWallet = async (provider: WalletProvider) => {
   } catch(error: any) {
     console.error("Firebase function error response:", error);
     // Re-throw a more specific error or the original one
-    if (error.code === 'functions/internal' || error.code === 'functions/unavailable') {
+    if (error.code === 'functions/internal' || error.code === 'functions/unavailable' || error.code === 'functions/unauthenticated') {
         throw new Error('An internal error occurred. This could be a CORS issue or a problem with the authentication function. Please try again later.');
     }
     throw error;

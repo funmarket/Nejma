@@ -4,6 +4,7 @@ import { AppProvider } from '@/context/AppContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import AuthHandler from '@/components/auth/AuthHandler';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'Spotly',
@@ -26,12 +27,14 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased bg-background text-foreground overflow-x-hidden">
-        <AuthProvider>
-          <AppProvider>
-            <AuthHandler>{children}</AuthHandler>
-            <Toaster />
-          </AppProvider>
-        </AuthProvider>
+        <FirebaseClientProvider>
+          <AuthProvider>
+            <AppProvider>
+              <AuthHandler>{children}</AuthHandler>
+              <Toaster />
+            </AppProvider>
+          </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );
