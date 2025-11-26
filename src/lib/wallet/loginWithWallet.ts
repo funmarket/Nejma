@@ -1,10 +1,8 @@
 'use client';
-import { getFunctions, httpsCallable, HttpsCallable } from "firebase/functions";
 import { signInWithCustomToken } from "firebase/auth";
 import { signWalletMessage } from "@/lib/wallet/signMessage";
 import { connectWallet } from "@/lib/wallet/connectWallet";
-import { initializeFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { getAuth } from 'firebase/auth';
 import type { WalletProvider } from "./solanaWallet";
 
 const PROVIDER_KEY = 'spotly_wallet_provider';
@@ -20,8 +18,7 @@ export function clearProvider() {
 }
 
 export const loginWithWallet = async (provider: WalletProvider) => {
-  const { firestore, auth } = initializeFirebase();
-  const functions = getFunctions(auth.app);
+  const auth = getAuth(); // Get auth from the provider
   
   const { publicKey } = await connectWallet(provider);
 
@@ -30,29 +27,32 @@ export const loginWithWallet = async (provider: WalletProvider) => {
   
   const publicKeyHex = Buffer.from(publicKey, 'utf-8').toString('hex');
   
-  const solanaLogin = httpsCallable(functions, 'solanaLogin');
-  
+  // Use a standard fetch to call the onRequest function
+  const functionUrl = `https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/solanaLogin`;
+
   try {
-    const result = await solanaLogin({ publicKey: publicKeyHex, signature, message });
-    const { token } = result.data as { token: string };
+    const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ publicKey: publicKeyHex, signature, message }),
+    });
 
-    const userCredential = await signInWithCustomToken(auth, token);
-    const user = userCredential.user;
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get custom token.');
+    }
+    
+    const { token } = await response.json();
 
-    // Use the user's UID (which is the public key) as the document ID
-    await setDoc(doc(firestore, "users", user.uid), {
-      walletAddress: publicKey, // The base58 public key
-      userId: user.uid,
-      provider,
-      updatedAt: Date.now(),
-    }, { merge: true });
+    await signInWithCustomToken(auth, token);
 
     return { publicKey };
 
   } catch(error: any) {
     console.error("Firebase function error response:", error);
-    // Re-throw a more specific error or the original one
-    if (error.code === 'functions/internal' || error.code === 'functions/unavailable' || error.code === 'functions/unauthenticated') {
+    if (error.message.includes('Failed to fetch')) {
         throw new Error('An internal error occurred. This could be a CORS issue or a problem with the authentication function. Please try again later.');
     }
     throw error;

@@ -15,6 +15,7 @@ import { loginWithWallet, getProvider, setProvider, clearProvider } from '@/lib/
 import type { WalletProvider } from '@/lib/wallet/solanaWallet';
 import { useToast } from '@/hooks/use-toast';
 import { useUser as useFirebaseAuthUser } from '@/firebase'; // Use the user from our Firebase provider
+import { getAuth } from 'firebase/auth';
 
 interface AuthContextType {
   userWallet: string | null;
@@ -32,62 +33,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
-  // This hook gets the auth user from the Firebase Provider, not our own state
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseAuthUser();
 
-  // Effect to sync our app's user profile with the Firebase auth state
   useEffect(() => {
     const syncUser = async () => {
-      // If Firebase has a user and we have a wallet address, fetch the profile
-      if (firebaseUser && userWallet) {
-        setLoading(true);
+      if (firebaseUser && firebaseUser.uid.startsWith('wallet_')) {
+        const wallet = firebaseUser.uid.replace('wallet_', '');
+        setUserWallet(wallet);
         try {
-          const userProfile = await getUserByWallet(userWallet);
+          const userProfile = await getUserByWallet(wallet);
           setCurrentUser(userProfile);
         } catch (error) {
           console.error("Failed to fetch user profile:", error);
           setCurrentUser(null);
-        } finally {
-          setLoading(false);
         }
       } else {
-        // No firebase user, so clear our app's user state
         setCurrentUser(null);
         setUserWallet(null);
-        setLoading(false);
       }
+      setLoading(false);
     };
     
-    // isAuthLoading tells us when Firebase has finished checking the auth state
     if (!isAuthLoading) {
       syncUser();
     }
-  }, [firebaseUser, userWallet, isAuthLoading]);
-
-  // Check for a stored provider on initial load
-  useEffect(() => {
-    const storedProvider = getProvider();
-    if(storedProvider) {
-       // If there's a provider, we assume the Firebase onAuthStateChanged 
-       // will handle the login and the effect above will fetch the user.
-    } else {
-        setLoading(false);
-    }
-  }, []);
+  }, [firebaseUser, isAuthLoading]);
 
 
   const connectWallet = useCallback(async (provider: WalletProvider) => {
     setLoading(true);
     try {
       const { publicKey } = await loginWithWallet(provider);
-      setUserWallet(publicKey); // This will trigger the useEffect to fetch the profile
-      setProvider(provider); // Store the provider
+      setProvider(provider);
+      // The useEffect above will handle setting userWallet and currentUser
+      // based on the firebaseUser change.
       toast({
         title: 'Wallet Connected',
-        description: `Successfully connected to wallet: ${publicKey.slice(
-          0,
-          4
-        )}...${publicKey.slice(-4)}`,
+        description: `Successfully connected.`,
       });
     } catch (e) {
       console.error('Wallet connect failed', e);
@@ -104,19 +86,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: errorMessage,
         variant: 'destructive',
       });
-      setLoading(false); // Ensure loading is false on failure
+      setLoading(false);
     }
   }, [toast]);
 
 
   const disconnectWallet = useCallback(async () => {
-    if (firebaseUser) {
-      await firebaseUser.delete(); // This will sign out the user
+    setLoading(true);
+    const auth = getAuth();
+    if (auth.currentUser) {
+      await auth.signOut();
     }
     setUserWallet(null);
     setCurrentUser(null);
     clearProvider();
-  }, [firebaseUser]);
+    setLoading(false);
+  }, []);
 
   const value = useMemo(
     () => ({ userWallet, currentUser, connectWallet, disconnectWallet, loading }),

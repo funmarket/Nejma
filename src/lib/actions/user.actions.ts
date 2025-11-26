@@ -8,31 +8,32 @@ import type { User } from "@/lib/types";
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
   const user = users.find(u => u.walletAddress === walletAddress && !u.isDeleted);
-  return user ? { ...user } : null;
+  return user ? JSON.parse(JSON.stringify(user)) : null;
 }
 
 export async function getUserById(userId: string): Promise<User | null> {
   const user = users.find(u => u.userId === userId && !u.isDeleted);
-  return user ? { ...user } : null;
+  return user ? JSON.parse(JSON.stringify(user)) : null;
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {
   const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && !u.isDeleted);
-  return user ? { ...user } : null;
+  return user ? JSON.parse(JSON.stringify(user)) : null;
 }
 
 export async function getActiveUsers(): Promise<User[]> {
-  return users.filter(u => !u.isDeleted && !u.isBanned && !u.isSuspended);
+  return JSON.parse(JSON.stringify(users.filter(u => !u.isDeleted && !u.isBanned && !u.isSuspended)));
 }
 
 export async function checkOrCreateUser(walletAddress: string): Promise<User> {
-    console.log("Checking for user with wallet:", walletAddress);
+  console.log("Checking for user with wallet:", walletAddress);
   let user = await getUserByWallet(walletAddress);
   if (!user) {
     console.log(`Creating new user for wallet: ${walletAddress}`);
+    const userId = `user_${Date.now()}`;
     const newUser: User = {
-      id: `user-${Date.now()}`,
-      userId: `user-${Date.now()}`,
+      id: userId,
+      userId: userId,
       walletAddress: walletAddress,
       username: `user_${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`,
       bio: '',
@@ -42,10 +43,10 @@ export async function checkOrCreateUser(walletAddress: string): Promise<User> {
       updatedAt: Date.now(),
     };
     users.push(newUser); // Add to our mock DB
-    return newUser;
+    return JSON.parse(JSON.stringify(newUser));
   }
   console.log("User found:", user.username);
-  return user;
+  return JSON.parse(JSON.stringify(user));
 }
 
 
@@ -63,7 +64,7 @@ export async function createUser(profileData: Partial<User> & { walletAddress: s
     role: profileData.role || 'fan', // ensure role is set
   };
   users.push(newUser);
-  return newUser;
+  return JSON.parse(JSON.stringify(newUser));
 }
 
 export async function updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
@@ -72,7 +73,7 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   if (userIndex === -1) return null;
   
   users[userIndex] = { ...users[userIndex], ...updates, updatedAt: Date.now() };
-  return users[userIndex];
+  return JSON.parse(JSON.stringify(users[userIndex]));
 }
 
 export async function deleteUser(userId: string): Promise<{ success: boolean }> {
