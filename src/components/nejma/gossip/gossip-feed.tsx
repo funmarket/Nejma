@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -22,6 +23,8 @@ export function GossipFeed() {
         if (usersList.length > 0) {
           setCurrentUser(usersList[0]);
         }
+      } else {
+        setCurrentUser(null);
       }
     };
     loadCurrentUser();
@@ -54,7 +57,7 @@ export function GossipFeed() {
       <PostComposer onPostCreated={refreshFeed} />
       <div className="flex gap-3 mb-6">
         <Button onClick={() => setFeedFilter('all')} variant={feedFilter === 'all' ? 'default' : 'secondary'} className="flex-1">All Posts</Button>
-        <Button onClick={() => setFeedFilter('following')} variant={feedFilter === 'following' ? 'default' : 'secondary'} className="flex-1">Following</Button>
+        <Button onClick={() => setFeedFilter('following')} variant={feedFilter === 'following' ? 'default' : 'secondary'} className="flex-1" disabled={!user}>Following</Button>
       </div>
       <div className="space-y-4">
         {feedItems.length > 0 ? feedItems : (

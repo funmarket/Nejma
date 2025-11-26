@@ -1,42 +1,47 @@
+
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
 
 export function useGossipApi() {
   const { devbaseClient, user } = useDevapp();
 
-  const listPosts = async () => {
+  const listPosts = useCallback(async () => {
     return devbaseClient.listEntities('gossip_posts');
-  };
+  }, [devbaseClient]);
 
-  const createPost = async (postData: any) => {
+  const createPost = useCallback(async (postData: any) => {
+    if (!user) throw new Error("User not authenticated");
     return devbaseClient.createEntity('gossip_posts', {
       ...postData,
-      authorWallet: user?.uid,
+      authorWallet: user.uid,
       createdAt: Date.now(),
       commentsCount: 0,
+      rating: 0,
+      ratingCount: 0
     });
-  };
+  }, [devbaseClient, user]);
 
-  const listComments = async (postId: string) => {
+  const listComments = useCallback(async (postId: string) => {
     return devbaseClient.listEntities('gossip_comments', { postId });
-  };
+  }, [devbaseClient]);
 
-  const createComment = async (postId: string, content: string) => {
+  const createComment = useCallback(async (postId: string, content: string) => {
+    if (!user) throw new Error("User not authenticated");
     return devbaseClient.createEntity('gossip_comments', {
       postId,
       content,
-      authorWallet: user?.uid,
+      authorWallet: user.uid,
       createdAt: Date.now(),
     });
-  };
+  }, [devbaseClient, user]);
 
-  const deleteComment = async (commentId: string) => {
+  const deleteComment = useCallback(async (commentId: string) => {
     return devbaseClient.deleteEntity('gossip_comments', commentId);
-  };
+  }, [devbaseClient]);
   
-  const ratePost = async (postId: string, score: number) => {
-    if (!user) return;
+  const ratePost = useCallback(async (postId: string, score: number) => {
+    if (!user) throw new Error("User not authenticated");
     const existingRatings = await devbaseClient.listEntities('gossip_ratings', {
       postId,
       raterWallet: user.uid,
@@ -44,40 +49,40 @@ export function useGossipApi() {
     if (existingRatings.length > 0) {
       return devbaseClient.updateEntity('gossip_ratings', existingRatings[0].id, { score });
     } else {
-      return devbaseClient.createEntity('gossip_ratings', { postId, score, raterWallet: user.uid });
+      return devbaseClient.createEntity('gossip_ratings', { postId, score, raterWallet: user.uid, createdAt: Date.now() });
     }
-  };
+  }, [devbaseClient, user]);
 
-  const getRatings = async (postId: string) => {
+  const getRatings = useCallback(async (postId: string) => {
     return devbaseClient.listEntities('gossip_ratings', { postId });
-  };
+  }, [devbaseClient]);
   
-  const getUserRatingForPost = async (postId: string, walletAddress: string) => {
+  const getUserRatingForPost = useCallback(async (postId: string, walletAddress: string) => {
     if (!walletAddress) return 0;
     const ratings = await devbaseClient.listEntities('gossip_ratings', {
       postId,
       raterWallet: walletAddress,
     });
     return ratings.length > 0 ? ratings[0].score : 0;
-  };
+  }, [devbaseClient]);
   
-  const listServiceAds = async () => {
+  const listServiceAds = useCallback(async () => {
     return devbaseClient.listEntities('gossip_service_ads');
-  };
+  }, [devbaseClient]);
   
-  const followUser = async (followingId: string) => {
-    if(!user) return;
-    return devbaseClient.createEntity('gossip_user_follows', { followerWallet: user.uid, followingId });
-  };
+  const followUser = useCallback(async (followingId: string) => {
+    if(!user) throw new Error("User not authenticated");
+    return devbaseClient.createEntity('gossip_user_follows', { followerWallet: user.uid, followingId, createdAt: Date.now() });
+  }, [devbaseClient, user]);
   
-  const unfollowUser = async (followId: string) => {
+  const unfollowUser = useCallback(async (followId: string) => {
     return devbaseClient.deleteEntity('gossip_user_follows', followId);
-  };
+  }, [devbaseClient]);
   
-  const getUserFollows = async () => {
+  const getUserFollows = useCallback(async () => {
     if (!user) return [];
     return devbaseClient.listEntities('gossip_user_follows', { followerWallet: user.uid });
-  };
+  }, [devbaseClient, user]);
 
   return { listPosts, createPost, listComments, createComment, deleteComment, ratePost, getRatings, getUserRatingForPost, listServiceAds, followUser, unfollowUser, getUserFollows };
 }
@@ -95,80 +100,107 @@ export function useGossipFeed() {
   const [userFollows, setUserFollows] = useState<Record<string, string>>({});
   const [feedFilter, setFeedFilter] = useState('all');
 
-  const loadFeed = async () => {
+  const loadFeed = useCallback(async () => {
     setLoading(true);
-    const [postsData, adsData, followsData] = await Promise.all([
-      api.listPosts(),
-      api.listServiceAds(),
-      api.getUserFollows()
-    ]);
-    
-    setPosts(postsData.sort((a, b) => b.createdAt - a.createdAt));
-    setAds(adsData);
-    
-    const followsMap: Record<string, string> = {};
-    followsData.forEach(follow => {
-      followsMap[follow.followingId] = follow.id;
-    });
-    setUserFollows(followsMap);
+    try {
+      const [postsData, adsData, followsData] = await Promise.all([
+        api.listPosts(),
+        api.listServiceAds(),
+        user ? api.getUserFollows() : Promise.resolve([]),
+      ]);
+      
+      const sortedPosts = postsData.sort((a, b) => b.createdAt - a.createdAt);
+      setPosts(sortedPosts);
+      setAds(adsData);
+      
+      const followsMap: Record<string, string> = {};
+      followsData.forEach((follow: any) => {
+        followsMap[follow.followingId] = follow.id;
+      });
+      setUserFollows(followsMap);
 
-    const allRatingsMap: Record<string, any[]> = {};
-    const userRatingsMap: Record<string, number> = {};
-    if (user) {
-      for (const post of postsData) {
-        const postAllRatings = await api.getRatings(post.id);
-        allRatingsMap[post.id] = postAllRatings;
-        const userRating = await api.getUserRatingForPost(post.id, user.uid);
-        userRatingsMap[post.id] = userRating;
+      if (user) {
+        const ratingsPromises = sortedPosts.map(post => api.getRatings(post.id));
+        const userRatingsPromises = sortedPosts.map(post => api.getUserRatingForPost(post.id, user.uid));
+        
+        const allRatingsResults = await Promise.all(ratingsPromises);
+        const userRatingsResults = await Promise.all(userRatingsPromises);
+
+        const allRatingsMap: Record<string, any[]> = {};
+        const userRatingsMap: Record<string, number> = {};
+
+        sortedPosts.forEach((post, index) => {
+          allRatingsMap[post.id] = allRatingsResults[index];
+          userRatingsMap[post.id] = userRatingsResults[index];
+        });
+
+        setRatings(allRatingsMap);
+        setUserPostRatings(userRatingsMap);
+      } else {
+        setRatings({});
+        setUserPostRatings({});
       }
+    } catch (error) {
+      console.error("Error loading feed:", error);
+    } finally {
+      setLoading(false);
     }
-    setRatings(allRatingsMap);
-    setUserPostRatings(userRatingsMap);
-    setLoading(false);
-  };
+  }, [api, user]);
 
   useEffect(() => {
     loadFeed();
-  }, [user]);
+  }, [loadFeed]);
 
-  const toggleComments = async (postId: string) => {
+  const toggleComments = useCallback(async (postId: string) => {
     setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }));
-    if (!comments[postId]) {
+    if (!comments[postId] && (!expandedComments[postId])) { // fetch only if opening and not already fetched
       const commentsData = await api.listComments(postId);
-      setComments(prev => ({ ...prev, [postId]: commentsData }));
+      setComments(prev => ({ ...prev, [postId]: commentsData.sort((a, b) => a.createdAt - b.createdAt) }));
     }
-  };
+  }, [api, comments, expandedComments]);
 
-  const submitComment = async (postId: string, content: string) => {
+  const submitComment = useCallback(async (postId: string, content: string) => {
     await api.createComment(postId, content);
     const postToUpdate = posts.find(p => p.id === postId);
-    if (postToUpdate) {
+    if (postToUpdate && devbaseClient) {
       await devbaseClient.updateEntity('gossip_posts', postId, { commentsCount: (postToUpdate.commentsCount || 0) + 1 });
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p));
     }
     const commentsData = await api.listComments(postId);
-    setComments(prev => ({ ...prev, [postId]: commentsData }));
-  };
+    setComments(prev => ({ ...prev, [postId]: commentsData.sort((a, b) => a.createdAt - b.createdAt) }));
+  }, [api, devbaseClient, posts]);
 
-  const handleDeleteComment = async (commentId: string, postId: string) => {
+  const handleDeleteComment = useCallback(async (commentId: string, postId: string) => {
     await api.deleteComment(commentId);
     const postToUpdate = posts.find(p => p.id === postId);
-    if (postToUpdate && postToUpdate.commentsCount > 0) {
+    if (postToUpdate && postToUpdate.commentsCount > 0 && devbaseClient) {
       await devbaseClient.updateEntity('gossip_posts', postId, { commentsCount: postToUpdate.commentsCount - 1 });
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentsCount: p.commentsCount - 1 } : p));
     }
     const updatedComments = await api.listComments(postId);
-    setComments(prev => ({ ...prev, [postId]: updatedComments }));
-  };
+    setComments(prev => ({ ...prev, [postId]: updatedComments.sort((a, b) => a.createdAt - b.createdAt) }));
+  }, [api, devbaseClient, posts]);
   
-  const ratePost = async (postId: string, score: number) => {
+  const ratePost = useCallback(async (postId: string, score: number) => {
+    if (!user) return;
     await api.ratePost(postId, score);
     const ratingsData = await api.getRatings(postId);
+
+    const totalScore = ratingsData.reduce((sum, r) => sum + r.score, 0);
+    const avgRating = ratingsData.length > 0 ? totalScore / ratingsData.length : 0;
+
+    if (devbaseClient) {
+      await devbaseClient.updateEntity('gossip_posts', postId, {
+        rating: avgRating,
+        ratingCount: ratingsData.length,
+      });
+    }
+
     setRatings(prev => ({ ...prev, [postId]: ratingsData }));
     setUserPostRatings(prev => ({ ...prev, [postId]: score }));
-  };
+  }, [api, user, devbaseClient]);
 
-  const toggleFollow = async (followingId: string) => {
+  const toggleFollow = useCallback(async (followingId: string) => {
     if (!user) return;
     const followId = userFollows[followingId];
     if (followId) {
@@ -184,7 +216,7 @@ export function useGossipFeed() {
         setUserFollows(prev => ({ ...prev, [followingId]: newFollow.id }));
       }
     }
-  };
+  }, [api, user, userFollows]);
 
   const filteredPosts = feedFilter === 'following' ? posts.filter(post => userFollows[post.authorWallet]) : posts;
 
