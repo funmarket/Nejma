@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Wand2 } from "lucide-react";
-import { summarizeVideo } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -20,30 +19,7 @@ export function VideoSummarizer({ videoUrl, onSummaryGenerated }: VideoSummarize
   const { addToast } = useToast();
 
   const handleSummarize = async () => {
-    if (!videoUrl) {
-      addToast("Please enter a video URL first.", "error");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await summarizeVideo({
-        youtubeVideoUrl: videoUrl,
-        format,
-        length,
-      });
-
-      if (result.success && result.summary) {
-        onSummaryGenerated(result.summary);
-        addToast("Summary generated successfully!", "success");
-      } else {
-        throw new Error(result.error || "Unknown error");
-      }
-    } catch (error: any) {
-      addToast(error.message || "Failed to generate summary.", "error");
-    } finally {
-      setIsSubmitting(false);
-    }
+    addToast("AI summarization is not configured.", "info");
   };
 
   return (
@@ -51,7 +27,7 @@ export function VideoSummarizer({ videoUrl, onSummaryGenerated }: VideoSummarize
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <Label htmlFor="summary-format">Summary Format</Label>
-                <Select value={format} onValueChange={(value) => setFormat(value as any)}>
+                <Select value={format} onValueChange={(value) => setFormat(value as any)} disabled>
                     <SelectTrigger id="summary-format">
                         <SelectValue placeholder="Format" />
                     </SelectTrigger>
@@ -63,7 +39,7 @@ export function VideoSummarizer({ videoUrl, onSummaryGenerated }: VideoSummarize
             </div>
             <div>
                 <Label htmlFor="summary-length">Summary Length</Label>
-                <Select value={length} onValueChange={(value) => setLength(value as any)}>
+                <Select value={length} onValueChange={(value) => setLength(value as any)} disabled>
                     <SelectTrigger id="summary-length">
                         <SelectValue placeholder="Length" />
                     </SelectTrigger>
