@@ -44,7 +44,7 @@ export function BottomNav() {
               "flex flex-col items-center justify-center gap-1 transition-colors",
               isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
             )}>
-              <Icon size={iconSize} isActive={isActive} />
+              <Icon size={iconSize} {...(item.icon === MarketIcon && { isActive })} />
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );
