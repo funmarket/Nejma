@@ -34,10 +34,13 @@ export const devbaseHelpers = {
     }
   },
   
-  async createVideo(client: typeof devbaseClient, videoData: any) {
+  async createVideo(client: typeof devbaseClient, videoData: { artistId: string; rawVideoInput: string; description: string; category: string; }) {
     try {
       const created = await client.createEntity('videos', {
-        ...videoData,
+        artistId: videoData.artistId,
+        rawVideoInput: videoData.rawVideoInput,
+        description: videoData.description,
+        category: videoData.category,
         status: 'active',
         createdAt: Date.now(),
         topCount: 0,
