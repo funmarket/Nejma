@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -108,11 +109,11 @@ export function OnboardProfilePage() {
         try {
             const profileData = {
                 walletAddress: user.uid,
-                username: formData.username,
-                bio: formData.bio,
-                location: formData.location || null,
-                profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl),
-                bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl),
+                username: formData.username || '',
+                bio: formData.bio || '',
+                location: formData.location || '',
+                profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl) || '',
+                bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl) || '',
                 socialLinks: formData.socialLinks,
                 extraLinks: formData.extraLinks,
                 role,
@@ -265,20 +266,20 @@ export function OnboardProfilePage() {
                             {type !== 'fan' && renderAccountTypeSelection()}
                             <div className="space-y-4">
                                 <Label htmlFor="username">Username *</Label>
-                                <Input id="username" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder={type === 'artist' ? 'Your stage name' : 'Your username'} />
+                                <Input id="username" value={formData.username || ''} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder={type === 'artist' ? 'Your stage name' : 'Your username'} />
                             
                                 <Label htmlFor="bio">Bio</Label>
-                                <Textarea id="bio" value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
+                                <Textarea id="bio" value={formData.bio || ''} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
                                 
                                 <Label htmlFor="location">Location</Label>
-                                <Input id="location" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
+                                <Input id="location" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
 
                                 <Label htmlFor="profilePhoto">Profile Photo URL</Label>
-                                <Input id="profilePhoto" value={formData.profilePhotoUrl} onChange={e => setFormData({ ...formData, profilePhotoUrl: e.target.value })} placeholder="https://..." />
+                                <Input id="profilePhoto" value={formData.profilePhotoUrl || ''} onChange={e => setFormData({ ...formData, profilePhotoUrl: e.target.value })} placeholder="https://..." />
                                 {formData.profilePhotoUrl && <Image src={formData.profilePhotoUrl} alt="Profile preview" width={80} height={80} className="w-20 h-20 rounded-full object-cover mt-2" />}
 
                                 <Label htmlFor="bannerPhoto">Banner Photo URL</Label>
-                                <Input id="bannerPhoto" value={formData.bannerPhotoUrl} onChange={e => setFormData({ ...formData, bannerPhotoUrl: e.target.value })} placeholder="https://..." />
+                                <Input id="bannerPhoto" value={formData.bannerPhotoUrl || ''} onChange={e => setFormData({ ...formData, bannerPhotoUrl: e.target.value })} placeholder="https://..." />
                                 {formData.bannerPhotoUrl && <Image src={formData.bannerPhotoUrl} alt="Banner preview" width={400} height={150} className="w-full h-32 object-cover rounded-lg mt-2" />}
                             </div>
                             
@@ -304,3 +305,5 @@ export function OnboardProfilePage() {
         </div>
     );
 }
+
+    
