@@ -1,6 +1,5 @@
 
-
-"use client";
+'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -138,12 +137,12 @@ export function OnboardProfilePage() {
     
     useEffect(() => {
         if (!connected) {
-            addToast("Wallet disconnected", "error");
+            addToast("Wallet disconnected. Please reconnect to continue.", "error");
         }
     }, [connected, addToast]);
 
     const handleCreateProfile = async () => {
-        if (!publicKey) {
+        if (!publicKey || !connected) {
             addToast('Wallet not connected.', 'error');
             return;
         }
