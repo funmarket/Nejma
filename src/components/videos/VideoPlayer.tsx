@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { parseYouTubeUrl } from '@/lib/utils';
+import { parseYouTubeUrl } from '@/lib/nejma/youtube';
 import { Button } from '@/components/ui/button';
 
 interface VideoPlayerProps {

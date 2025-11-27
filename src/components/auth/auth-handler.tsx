@@ -14,24 +14,21 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useUser } from "@/hooks/use-user";
+import { MainLayout } from "../layout/main-layout";
 
 export function AuthHandler({ children }: { children: React.ReactNode }) {
   const { publicKey, connected, connecting } = useWallet();
-  const { user, loading: userLoading } = useUser();
-
-  const [isEnsuringProfile, setIsEnsuringProfile] = useState(false);
+  const [isEnsuringProfile, setIsEnsuringProfile] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
 
-  // 1. Splash Screen Timer
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // 2. Profile Creation/Verification Logic
   const ensureUserProfile = useCallback(async () => {
-    if (connecting || !connected || !publicKey || userLoading || user) {
+    if (!connected || !publicKey) {
+      setIsEnsuringProfile(false);
       return;
     }
     
@@ -66,19 +63,17 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
     } finally {
       setIsEnsuringProfile(false);
     }
-  }, [connecting, connected, publicKey, user, userLoading]);
+  }, [connected, publicKey]);
 
-  // 3. Trigger Profile Check
   useEffect(() => {
     ensureUserProfile();
   }, [ensureUserProfile]);
   
-  // 4. Determine Loading State
   if (showSplash) {
     return <SplashScreen />;
   }
 
-  const showLoading = connecting || (!user && connected && (userLoading || isEnsuringProfile));
+  const showLoading = connecting || (connected && isEnsuringProfile);
 
   if (showLoading) {
     return (
@@ -103,5 +98,5 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <MainLayout>{children}</MainLayout>;
 }
