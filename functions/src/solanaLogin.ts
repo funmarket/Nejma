@@ -11,6 +11,12 @@ const corsHandler = cors({ origin: true });
 
 export const solanaLogin = functions.https.onRequest((req, res) => {
   corsHandler(req, res, () => {
+    // Explicitly handle pre-flight requests.
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
     if (req.method !== "POST") {
       return res.status(400).json({ error: "POST only" });
     }
