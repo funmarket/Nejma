@@ -2,7 +2,7 @@
 'use client';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { createPost } from '@/lib/actions/gossip.actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { sanitizeUrl } from '@/lib/utils';
 
 export default function PostComposer({ onPostCreated }: { onPostCreated: () => void }) {
   const { currentUser } = useAuth();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [category, setCategory] = useState('general');
@@ -20,18 +20,18 @@ export default function PostComposer({ onPostCreated }: { onPostCreated: () => v
 
   const handleSubmit = async () => {
     if (!currentUser) {
-      toast({ title: 'Please connect your wallet to post.', variant: 'destructive' });
+      addToast('Please connect your wallet to post.', 'error');
       return;
     }
     if (!content.trim()) {
-      toast({ title: 'Post content cannot be empty.', variant: 'destructive' });
+      addToast('Post content cannot be empty.', 'error');
       return;
     }
     let sanitizedImageUrl = '';
     if (imageUrl.trim()) {
         sanitizedImageUrl = sanitizeUrl(imageUrl.trim()) || '';
         if (!sanitizedImageUrl) {
-            toast({ title: 'Invalid or unsafe image URL.', variant: 'destructive' });
+            addToast('Invalid or unsafe image URL.', 'error');
             return;
         }
     }
@@ -48,10 +48,10 @@ export default function PostComposer({ onPostCreated }: { onPostCreated: () => v
       setContent('');
       setImageUrl('');
       setCategory('general');
-      toast({ title: 'Post created!', description: 'Your post is now live on the feed.' });
+      addToast('Post created!', 'success');
       onPostCreated();
     } catch (error) {
-      toast({ title: 'Error creating post', description: 'Please try again.', variant: 'destructive' });
+      addToast('Error creating post', 'error');
     } finally {
       setSubmitting(false);
     }

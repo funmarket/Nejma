@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import { createMarketplaceItem } from '@/lib/actions/marketplace.actions';
 export default function ListItemForm() {
     const { currentUser } = useAuth();
     const router = useRouter();
-    const { toast } = useToast();
+    const { addToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [category, setCategory] = useState<string>('');
@@ -26,7 +26,7 @@ export default function ListItemForm() {
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!currentUser) {
-            toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+            addToast('You must be logged in.', 'error');
             return;
         }
 
@@ -43,18 +43,18 @@ export default function ListItemForm() {
         };
 
         if (isNaN(itemData.price) || itemData.price <= 0) {
-            toast({ title: 'Invalid Price', description: 'Please enter a valid price.', variant: 'destructive' });
+            addToast('Please enter a valid price.', 'error');
             setIsSubmitting(false);
             return;
         }
 
         try {
             await createMarketplaceItem(itemData);
-            toast({ title: 'Success!', description: 'Your item has been listed.' });
+            addToast('Your item has been listed.', 'success');
             router.push('/marketplace');
         } catch (error) {
             console.error('Error listing item:', error);
-            toast({ title: 'Listing Failed', description: 'Could not list your item.', variant: 'destructive' });
+            addToast('Could not list your item.', 'error');
         } finally {
             setIsSubmitting(false);
         }

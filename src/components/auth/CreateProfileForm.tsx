@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,7 +27,7 @@ interface CreateProfileFormProps {
 export default function CreateProfileForm({ accountType }: CreateProfileFormProps) {
   const { userWallet } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [step, setStep] = useState(1);
   
   const [isArtist, setIsArtist] = useState(accountType === 'artist');
@@ -51,17 +51,17 @@ export default function CreateProfileForm({ accountType }: CreateProfileFormProp
   const handleCreateProfile = async () => {
     setLoading(true);
     if (!userWallet) {
-      toast({ title: 'Error', description: 'Wallet not connected.', variant: 'destructive' });
+      addToast('Wallet not connected.', 'error');
       setLoading(false);
       return;
     }
     if (!formData.username) {
-      toast({ title: 'Error', description: 'Username is required.', variant: 'destructive' });
+      addToast('Username is required.', 'error');
       setLoading(false);
       return;
     }
     if (accountType === 'artist' && !formData.talentCategory) {
-        toast({ title: 'Error', description: 'Talent category is required for artists.', variant: 'destructive' });
+        addToast('Talent category is required for artists.', 'error');
         setLoading(false);
         return;
     }
@@ -91,7 +91,7 @@ export default function CreateProfileForm({ accountType }: CreateProfileFormProp
         user = await createUser({ ...profileData, walletAddress: userWallet });
       }
 
-      toast({ title: 'Success!', description: 'Profile created successfully.' });
+      addToast('Profile created successfully!', 'success');
 
       if (isArtist) {
         setStep(2);
@@ -101,7 +101,7 @@ export default function CreateProfileForm({ accountType }: CreateProfileFormProp
 
     } catch (error) {
       console.error('Error creating profile:', error);
-      toast({ title: 'Error', description: 'Failed to create profile.', variant: 'destructive' });
+      addToast('Failed to create profile.', 'error');
     } finally {
         setLoading(false);
     }

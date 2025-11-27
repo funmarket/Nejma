@@ -4,7 +4,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { MessageCircle } from 'lucide-react';
 import StarRating from './StarRating';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -39,11 +39,11 @@ export default function PostCard({
 }: PostCardProps) {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
 
   const handleFollow = () => {
     if (!currentUser) {
-      toast({ title: 'Please connect your wallet to follow users', variant: 'destructive' });
+      addToast('Please connect your wallet to follow users', 'error');
       return;
     }
     if (author?.userId === currentUser.userId) {

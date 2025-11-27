@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { cn } from '@/lib/utils';
 import type { GossipRating } from '@/lib/types';
 
@@ -17,7 +17,7 @@ interface StarRatingProps {
 
 export default function StarRating({ postId, onRate, ratings, initialRating = 0 }: StarRatingProps) {
   const { userWallet } = useAuth();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [hoveredStar, setHoveredStar] = useState(0);
   const [userCurrentRating, setUserCurrentRating] = useState(initialRating);
 
@@ -30,7 +30,7 @@ export default function StarRating({ postId, onRate, ratings, initialRating = 0 
 
   const handleRate = async (score: number) => {
     if (!userWallet) {
-      toast({ title: 'Please connect your wallet to rate', variant: 'destructive' });
+      addToast('Please connect your wallet to rate', 'error');
       return;
     }
     setUserCurrentRating(score); // Optimistic update
