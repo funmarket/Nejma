@@ -1,19 +1,19 @@
+
 "use client";
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { UserButton } from '@/components/auth/user-button';
 import { cn } from '@/lib/utils';
 
-type TopCategoryMenuProps = {
-  activeFeedTab: string;
-  setActiveFeedTab: (tab: string) => void;
-};
-
-export function TopCategoryMenu({ activeFeedTab, setActiveFeedTab }: TopCategoryMenuProps) {
+export function TopCategoryMenu() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeFeedTab = pathname === '/' ? searchParams.get('category') || 'music' : '';
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -27,8 +27,7 @@ export function TopCategoryMenu({ activeFeedTab, setActiveFeedTab }: TopCategory
   };
 
   const handleCategoryClick = (cat: string) => {
-    setActiveFeedTab(cat);
-    router.push('/');
+    router.push(`/?category=${cat}`);
   };
 
   const getTabLabel = (tab: string) => {

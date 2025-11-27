@@ -35,70 +35,45 @@ export function VideoFeedPage() {
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Record<string, string>>({});
   const { addToast } = useToast();
 
-  const loadArtistsAndInitialVideos = useCallback(async () => {
-    if (!devbaseClient) return;
-    setLoading(true);
-    setError(null);
+  const loadArtistForVideo = useCallback(async (artistId: string) => {
+    if (!devbaseClient || !artistId || artists[artistId]) return;
     try {
-      const allUsers = await devbaseClient.listEntities('users');
-      const artistsMap: Record<string, any> = {};
-      allUsers.forEach(user => {
-        if (user.userId) artistsMap[user.userId] = user;
-        else if (user.id) artistsMap[user.id] = user;
-      });
-      setArtists(artistsMap);
-    } catch (err: any) {
-      console.error('Error loading artists:', err);
-      setError(err.message || 'Failed to load artists');
-    } finally {
-      setLoading(false);
+      const artistData = await devbaseHelpers.getUserByWallet(devbaseClient, artistId);
+      if (artistData) {
+        setArtists(prev => ({ ...prev, [artistId]: artistData }));
+      }
+    } catch (err) {
+      console.error(`Failed to load artist ${artistId}`, err);
     }
-  }, [devbaseClient]);
-  
-  useEffect(() => {
-    loadArtistsAndInitialVideos();
-  }, [loadArtistsAndInitialVideos]);
+  }, [devbaseClient, artists]);
 
   useEffect(() => {
-    if (Object.keys(artists).length === 0) return;
-
     const videosCollection = collection(db, 'videos');
-    const q = query(videosCollection, where('status', '==', 'active'));
+    
+    const categoryFilter = activeFeedTab !== 'rising' 
+      ? [where('category', '==', activeFeedTab), where('status', '==', 'active')]
+      : [where('status', '==', 'active')];
+
+    const q = query(videosCollection, ...categoryFilter);
+    
+    setLoading(true);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allVideos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      let videosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      let filteredVideos = allVideos.filter(v => {
-        if (!v || v.isBanned === true || v.hiddenFromFeed === true) return false;
-        const artist = artists[v.artistId];
-        if (!artist || artist.isDeleted === true || artist.isBanned === true || artist.isSuspended === true) return false;
-        if (activeFeedTab === 'rising') return true;
-        
-        const videoCategory = (v.category || '').toLowerCase();
-        const feedCategory = activeFeedTab.toLowerCase();
-        return videoCategory === feedCategory;
-      });
+      videosData = videosData.filter(v => v && v.isBanned !== true && v.hiddenFromFeed !== true);
 
       if (activeFeedTab === 'rising') {
-        filteredVideos.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0) || (b.createdAt || 0) - (a.createdAt || 0));
+        videosData.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0) || (b.createdAt || 0) - (a.createdAt || 0));
       } else {
-        // Keep existing order for non-rising to avoid reshuffling on updates
-        setVideos(currentVideos => {
-          const newVideoMap = new Map(filteredVideos.map(v => [v.id, v]));
-          const updatedVideos = currentVideos.map(v => newVideoMap.get(v.id) || v).filter(Boolean);
-          
-          const currentVideoIds = new Set(updatedVideos.map(v => v.id));
-          const newVideos = filteredVideos.filter(v => !currentVideoIds.has(v.id));
-
-          const finalVideos = [...updatedVideos, ...newVideos];
-          if (finalVideos.length > 0 && currentVideos.length === 0) {
-            // Initial random sort
-            return finalVideos.sort(() => Math.random() - 0.5);
-          }
-          return finalVideos;
-        });
+        videosData.sort(() => Math.random() - 0.5);
       }
+      
+      setVideos(videosData);
       setLoading(false);
+      if (videosData.length > 0) {
+        loadArtistForVideo(videosData[0].artistId);
+      }
     }, (err) => {
       console.error('Error with video snapshot:', err);
       setError(err.message || 'Failed to load videos in real-time');
@@ -106,7 +81,7 @@ export function VideoFeedPage() {
     });
 
     return () => unsubscribe();
-  }, [artists, activeFeedTab]);
+  }, [activeFeedTab, loadArtistForVideo]);
 
   
   const loadBookmarks = async () => {
@@ -134,13 +109,11 @@ export function VideoFeedPage() {
   const recordView = async (videoId: string) => {
     if (!user || !devbaseClient) return;
     try {
-      // This is a fire-and-forget operation on the client
       devbaseClient.createEntity('video_views', {
         videoId,
         viewerId: user.uid,
         viewedAt: Date.now()
       });
-      // Also update the video document's view count
       const video = videos.find(v => v.id === videoId);
       if (video) {
         devbaseClient.updateEntity('videos', videoId, { views: (video.views || 0) + 1 });
@@ -152,9 +125,11 @@ export function VideoFeedPage() {
   
   useEffect(() => {
       if (videos.length > 0 && videos[currentIndex]) {
-          recordView(videos[currentIndex].id);
+          const video = videos[currentIndex];
+          recordView(video.id);
+          loadArtistForVideo(video.artistId);
       }
-  }, [currentIndex, videos]);
+  }, [currentIndex, videos, loadArtistForVideo]);
 
 
   const handleVote = async (isTop: boolean) => {
@@ -162,16 +137,13 @@ export function VideoFeedPage() {
     const video = videos[currentIndex];
     const field = isTop ? 'topCount' : 'flopCount';
 
-    // Optimistic UI update
     setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) + 1 } : v));
 
     try {
         await devbaseClient.updateEntity('videos', video.id, { [field]: (video[field] || 0) + 1 });
-        // No need to emit, Firestore listener will catch the update
         nextVideo();
     } catch (error) {
         addToast('Failed to vote', 'error');
-        // Revert optimistic update
         setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) - 1 } : v));
     }
   };
