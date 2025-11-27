@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useToast } from '@/components/providers/toast-provider';
+import { useToast } from '@/hooks/use-toast';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
