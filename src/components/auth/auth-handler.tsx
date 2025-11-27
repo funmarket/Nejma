@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { SplashScreen } from '../nejma/splash-screen';
@@ -47,6 +48,7 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
       } else {
         const userDoc = usersSnapshot.docs[0];
         const existingUser = userDoc.data();
+        // This ensures old profiles get the userId field if they're missing it
         if (!existingUser.userId || existingUser.userId !== userDoc.id) {
           await updateDoc(userDoc.ref, { userId: userDoc.id });
         }
@@ -59,12 +61,12 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
   }, [publicKey, connected]);
 
   useEffect(() => {
-    if (!connecting && connected) {
+    if (connected && publicKey) {
       ensureUserProfile();
-    } else if (!connecting && !connected) {
-      setIsEnsuringProfile(false);
+    } else if (!connecting) {
+        setIsEnsuringProfile(false);
     }
-  }, [connecting, connected, ensureUserProfile]);
+  }, [connecting, connected, publicKey, ensureUserProfile]);
   
   if (showSplash) {
     return <SplashScreen />;
