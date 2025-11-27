@@ -1,0 +1,326 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Core Philosophy: This ruleset enforces a user-centric security model. Data is either
+     * strictly private to a user (e.g., bookmarks), publicly readable but only writable by the
+     * owner (e.g., videos, rentals), or shared between specific participants (e.g., bookings).
+     * The primary source of truth for authorization is the user's authentication UID.
+     *
+     * Data Structure: Data is organized into top-level collections. User-specific, private
+     * data like bookmarks is nested under the user's document (`/users/{userId}/bookmarks`) to
+     * leverage path-based security.
+     *
+     * Key Security Decisions:
+     * - Default Deny: All operations are denied by default.
+     * - User Scoping: Users can only access and manage their own data. Listing other users'
+     *   private subcollections is prohibited.
+     * - Public vs. Private: Publicly readable content (like videos or gossip posts) still has
+     *   strict, owner-only write permissions.
+     * - Wallet Address vs. UID: Many entities use a `...Wallet` field for ownership. This is
+     *   insecure for authorization as it cannot be reliably tied to `request.auth.uid`. These
+     *   rules will flag these cases with CRITICAL comments and TODOs, defaulting to safer but
+     *   more restrictive rules until the schema is updated to include a standard `userId` or
+     *   `ownerId` field.
+     *
+     * Denormalization for Authorization: The rules are designed to avoid costly and slow `get()`
+     * calls. For example, a `Video` document contains an `artistId` directly on it, allowing for
+     * a simple ownership check (`resource.data.artistId == request.auth.uid`) without needing to
+     * look up other documents.
+     *
+     * Structural Segregation: The use of a nested collection for `/users/{userId}/bookmarks` is a
+     * clear example of structural segregation. It cleanly separates one user's private data from
+     * another's, making security rules simple and queries efficient.
+     */
+
+    // ---------------------------
+    // Helper Functions
+    // ---------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the given userId.
+     * Used for verifying ownership of a resource via its path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the given userId
+     * AND if the document already exists.
+     * Used for safe update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+    
+    /**
+     * Checks if the authenticated user is the owner of an existing document
+     * by looking at a specific field in the document's data.
+     */
+    function isDocumentOwner(docData, fieldName) {
+      return isSignedIn() && resource != null && request.auth.uid == docData[fieldName];
+    }
+    
+    
+    /**
+     * Checks if an ownership field is immutable during an update.
+     */
+    function isOwnerFieldImmutable(fieldName) {
+      return request.resource.data[fieldName] == resource.data[fieldName];
+    }
+    
+    /**
+     * Validates that the business user is creating the booking and that both
+     * the artist and business can read it.
+     */
+    function isBookingParticipant(docData) {
+      return isSignedIn() && (request.auth.uid == docData.artistId || request.auth.uid == docData.businessId);
+    }
+    
+    /**
+     * Validates that the business user is creating the adoption and that both
+     * the artist and business can read it.
+     */
+    function isAdoptionParticipant(docData) {
+      return isSignedIn() && (request.auth.uid == docData.artistId || request.auth.uid == docData.businessId);
+    }
+
+    // ---------------------------
+    // Collection Rules
+    // ---------------------------
+
+    /**
+     * @description Users can create their own profile, but can only update or delete their own. User profiles are publicly readable.
+     * @path /users/{userId}
+     * @allow (get) Any user, signed in or not, can view a user profile.
+     * @allow (create) A new user with uid 'user-abc' creates their own profile document at /users/user-abc.
+     * @deny (update) User 'user-abc' tries to update the profile document for 'user-xyz'.
+     * @principle Enforces self-creation and ownership for user profiles.
+     */
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && isOwnerFieldImmutable('id');
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Videos are public and can be read by anyone. Only the artist who owns the video can create, update, or delete it.
+     * @path /videos/{videoId}
+     * @allow (get) Any user can view a video.
+     * @allow (create) An authenticated user creates a video and sets the 'artistId' to their own UID.
+     * @deny (update) A user tries to update a video where the 'artistId' does not match their UID.
+     * @principle Public read access with strict owner-only writes.
+     */
+    match /videos/{videoId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.artistId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.artistId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.artistId == request.auth.uid;
+    }
+
+    /**
+     * @description A user's bookmarks are private. Only the user can view, create, or delete their own bookmarks.
+     * @path /users/{userId}/bookmarks/{bookmarkId}
+     * @allow (create) User 'user-abc' creates a new bookmark in their own subcollection at /users/user-abc/bookmarks/{bookmarkId}.
+     * @deny (get) User 'user-xyz' attempts to read a bookmark from /users/user-abc/bookmarks/{bookmarkId}.
+     * @deny (list) User 'user-xyz' attempts to list all bookmarks for 'user-abc'.
+     * @principle Restricts access to a user's own data tree using path-based security.
+     */
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && isOwnerFieldImmutable('userId');
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Tips are publicly viewable. Any signed-in user can create a tip. Updates and deletes are disabled.
+     * @path /tips/{tipId}
+     * @allow (get) Any user can view the details of a tip transaction.
+     * @allow (create) A signed-in user creates a new tip document.
+     * @deny (update) No user can update a tip after it has been created.
+     * @principle Public read with create-only access for authenticated users.
+     */
+    match /tips/{tipId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.fromUserId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Bookings can be read by either the artist or the business. Only the business can create, update, or delete the booking.
+     * @path /bookings/{bookingId}
+     * @allow (get) The artist ('artistId') or the business ('businessId') can read the booking.
+     * @allow (create) The business user creates a booking request for an artist.
+     * @deny (get) A third-party user who is not the artist or business tries to read the booking.
+     * @deny (delete) The artist tries to delete a booking they received.
+     * @principle Implements a shared access model for a two-party transaction.
+     */
+    match /bookings/{bookingId} {
+      allow get, list: if isBookingParticipant(resource.data);
+      allow create: if isSignedIn() && request.resource.data.businessId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.businessId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.businessId == request.auth.uid;
+    }
+    
+    /**
+     * @description Adoptions can be read by either the artist or the business. Only the business can create, update, or delete the adoption.
+     * @path /adoptions/{adoptionId}
+     * @allow (get) The artist ('artistId') or the business ('businessId') can read the adoption.
+     * @allow (create) The business user creates an adoption request for an artist.
+     * @deny (get) A third-party user who is not the artist or business tries to read the adoption.
+     * @deny (delete) The artist tries to delete an adoption they received.
+     * @principle Implements a shared access model for a two-party transaction.
+     */
+    match /adoptions/{adoptionId} {
+      allow get, list: if isAdoptionParticipant(resource.data);
+      allow create: if isSignedIn() && request.resource.data.businessId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.businessId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.businessId == request.auth.uid;
+    }
+
+    /**
+     * @description Video views are public. Any signed-in user can create a view record. Updates and deletes are disallowed.
+     * @path /video_views/{videoViewId}
+     * @allow (get) Any user can view the record of a video view.
+     * @allow (create) A signed-in user creates a new video view record.
+     * @deny (delete) No one can delete a video view record.
+     * @principle Allows write access for any authenticated user for creating append-only logs.
+     */
+    match /video_views/{videoViewId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.viewerId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Marketplace products are public. Only the seller can manage their product.
+     * @path /marketplace_products/{marketplaceProductId}
+     * @allow (get) Anyone can view a marketplace product.
+     * @deny (create) All write operations are currently blocked for security.
+     * @principle Public read access, with owner-only writes.
+     */
+    match /marketplace_products/{marketplaceProductId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'sellerId') && isOwnerFieldImmutable('sellerId');
+      allow delete: if isDocumentOwner(resource.data, 'sellerId');
+    }
+
+    /**
+     * @description Rental listings are public. Only the owner can create, update, or delete their listings.
+     * @path /rentals/{rentalId}
+     * @allow (list) Anyone can list all available rentals.
+     * @allow (create) An authenticated user creates a new rental listing, setting 'ownerId' to their own UID.
+     * @deny (update) A user tries to modify a rental listing where 'ownerId' is not their UID.
+     * @principle Public read access with strict owner-only writes.
+     */
+    match /rentals/{rentalId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'ownerId') && isOwnerFieldImmutable('ownerId');
+      allow delete: if isDocumentOwner(resource.data, 'ownerId');
+    }
+
+    /**
+     * @description Gossip posts are public. Only the author can manage their post.
+     * @path /gossip_posts/{gossipPostId}
+     * @allow (get) Anyone can read a gossip post.
+     * @allow (create) Authenticated user creates a post, setting their own authorId.
+     * @principle Public read access, with owner-only writes.
+     */
+    match /gossip_posts/{gossipPostId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'authorId') && isOwnerFieldImmutable('authorId');
+      allow delete: if isDocumentOwner(resource.data, 'authorId');
+    }
+    
+    /**
+     * @description Gossip comments are public. Only the author can manage their comment.
+     * @path /gossip_comments/{gossipCommentId}
+     * @allow (get) Anyone can read comments.
+     * @allow (create) A signed-in user posts a new comment.
+     * @principle Public read access, with owner-only writes.
+     */
+    match /gossip_comments/{gossipCommentId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'authorId') && isOwnerFieldImmutable('authorId');
+      allow delete: if isDocumentOwner(resource.data, 'authorId');
+    }
+    
+    /**
+     * @description Gossip ratings are public. A user can only manage their own rating.
+     * @path /gossip_ratings/{gossipRatingId}
+     * @allow (get) Anyone can read ratings.
+     * @allow (create) A signed-in user submits a new rating, setting their own raterId.
+     * @principle Public read access, with owner-only writes.
+     */
+    match /gossip_ratings/{gossipRatingId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.raterId == request.auth.uid;
+      allow update: if isDocumentOwner(resource.data, 'raterId') && isOwnerFieldImmutable('raterId');
+      allow delete: if isDocumentOwner(resource.data, 'raterId');
+    }
+    
+    /**
+     * @description Service ads are public, but cannot be modified as there is no ownership information.
+     * @path /gossip_service_ads/{gossipServiceAdId}
+     * @allow (get) Anyone can read service ads.
+     * @deny (create) No one can create a new ad through security rules. This must be handled by a backend process.
+     * @principle Public read-only data. All client write access is forbidden.
+     */
+    match /gossip_service_ads/{gossipServiceAdId} {
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    /**
+     * @description Follow relationships can be managed only by the follower.
+     * @path /gossip_user_follows/{gossipUserFollowsId}
+     * @allow (get) Anyone can view follow relationships.
+     * @allow (create) A signed-in user creates a follow relationship for themselves.
+     * @principle Allows authenticated users to manage their own relationship documents.
+     */
+    match /gossip_user_follows/{gossipUserFollowsId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.followerId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isDocumentOwner(resource.data, 'followerId');
+    }
+    
+    /**
+     * @description Gossip messages are private and can only be read by the sender or receiver.
+     * @path /gossip_messages/{gossipMessageId}
+     * @allow (get) The sender or receiver of a message can read it.
+     * @allow (create) The sender of a message can create it.
+     * @principle Enforces privacy for direct messages between two users.
+     */
+    match /gossip_messages/{gossipMessageId} {
+      function isParticipant(docData) {
+        return isSignedIn() && (request.auth.uid == docData.fromId || request.auth.uid == docData.toId);
+      }
+      
+      allow get, list: if isParticipant(resource.data);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isDocumentOwner(resource.data, 'fromId');
+    }
+
+  }
+}

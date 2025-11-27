@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-1",
+      "description": "Abstract portrait of a musician",
+      "imageUrl": "https://images.unsplash.com/photo-1762160773080-f7e052aec406?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxtdXNpY2lhbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NDAzMzg5MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "musician portrait"
+    },
+    {
+      "id": "user-2",
+      "description": "Abstract portrait of a creator",
+      "imageUrl": "https://images.unsplash.com/photo-1643306713301-f0cbbaed139d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjcmVhdG9yJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY0MDk2MjQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "creator portrait"
+    },
+    {
+      "id": "user-3",
+      "description": "Abstract portrait of an actor",
+      "imageUrl": "https://images.unsplash.com/photo-1563594780354-c0bb0bd8a8ac?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhY3RvciUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NDAzMjUyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "actor portrait"
+    },
+    {
+      "id": "user-4",
+      "description": "Abstract portrait of a business person",
+      "imageUrl": "https://images.unsplash.com/photo-1590649778473-d017b9013d2a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxidXNpbmVzcyUyMHBlcnNvbnxlbnwwfHx8fDE3NjQwMTI3NjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "business person"
+    },
+    {
+      "id": "banner-1",
+      "description": "Abstract musical background",
+      "imageUrl": "https://images.unsplash.com/photo-1562575214-da9fcf59b907?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtdXNpYyUyMGFic3RyYWN0fGVufDB8fHx8MTc2NDA2MTA1NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "music abstract"
+    },
+    {
+      "id": "banner-2",
+      "description": "Abstract art background",
+      "imageUrl": "https://images.unsplash.com/photo-1544273677-c433136021d4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhcnQlMjBhYnN0cmFjdHxlbnwwfHx8fDE3NjQwMTc5NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "art abstract"
+    },
+    {
+      "id": "banner-3",
+      "description": "Abstract acting stage background",
+      "imageUrl": "https://images.unsplash.com/photo-1707546854106-607a4851f8fa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzdGFnZSUyMHRoZWF0cmV8ZW58MHx8fHwxNzY0MDk2MjQ4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "stage theatre"
+    },
+    {
+      "id": "banner-4",
+      "description": "Abstract business cityscape background",
+      "imageUrl": "https://images.unsplash.com/photo-1635783828476-3698e9b2c6df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjaXR5c2NhcGUlMjBhYnN0cmFjdHxlbnwwfHx8fDE3NjQwOTYyNDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cityscape abstract"
+    }
+  ]
 }
