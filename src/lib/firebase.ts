@@ -1,8 +1,12 @@
-
 "use client";
+
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
+import {
+  enableIndexedDbPersistence,
+  enableMultiTabIndexedDbPersistence,
+} from "firebase/firestore";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,9 +18,7 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 function getFirebaseApp() {
-  if (!getApps().length) {
-    return initializeApp(firebaseConfig);
-  }
+  if (!getApps().length) return initializeApp(firebaseConfig);
   return getApp();
 }
 
@@ -24,28 +26,27 @@ const firebaseApp = getFirebaseApp();
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
-// This is a workaround for a known issue with Firestore and hot-reloading
-// in Next.js. It prevents the app from crashing during development.
-// It also disables persistence in Firebase Studio to avoid QuotaExceededError.
-if (typeof window !== 'undefined') {
+// 🔥 FIREBASE STUDIO FIX — stops QuotaExceededError and unexpected Firestore crashes
+if (typeof window !== "undefined") {
   const isStudio =
     window.location.hostname.includes("cloudworkstations.dev") ||
     window.location.hostname.includes("firebase-studio");
 
   if (!isStudio) {
+    // Normal browsers → enable persistence
     enableMultiTabIndexedDbPersistence(db).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        // Multiple tabs open, persistence can only be enabled in one tab at a time.
-      } else if (err.code === 'unimplemented') {
-        // The current browser does not support all of the
-        // features required to enable persistence
+      if (err.code === "failed-precondition") {
+        // Multiple tabs open → fallback to single tab persistence
+        enableIndexedDbPersistence(db).catch(() => {});
       }
+      // 'unimplemented' = older browser, nothing to do
     });
+  } else {
+    console.warn("%cFirestore persistence disabled inside Firebase Studio (sandbox).", "color: orange;");
   }
 }
 
-// NOTE: The Firebase Auth logic is being deprecated in favor of Solana Wallet Adapter.
-// The `auth` export is kept for now to prevent breaking other parts of the app that
-// might still reference it, but it should not be used for new authentication features.
+// 🔒 NOTE: Firebase Auth remains only for compatibility.
+// New login should use Solana wallet adapter.
 
 export { firebaseApp, db, auth };
