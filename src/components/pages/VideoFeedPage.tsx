@@ -1,15 +1,16 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
-import { socket } from '@/lib/socket';
 import { devbaseHelpers } from '@/lib/nejma/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VideoCard } from '@/components/nejma/video-card';
 import { Sparkles } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 function SkeletonLoader() {
   return (
@@ -34,27 +35,42 @@ export function VideoFeedPage() {
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Record<string, string>>({});
   const { addToast } = useToast();
 
-  const loadVideos = async () => {
+  const loadArtistsAndInitialVideos = useCallback(async () => {
     if (!devbaseClient) return;
     setLoading(true);
     setError(null);
     try {
-      const allVideos = await devbaseClient.listEntities('videos', { status: 'active' });
       const allUsers = await devbaseClient.listEntities('users');
-      
       const artistsMap: Record<string, any> = {};
       allUsers.forEach(user => {
-        if (user.userId) {
-          artistsMap[user.userId] = user;
-        } else if (user.id) {
-          artistsMap[user.id] = user;
-        }
+        if (user.userId) artistsMap[user.userId] = user;
+        else if (user.id) artistsMap[user.id] = user;
       });
       setArtists(artistsMap);
+    } catch (err: any) {
+      console.error('Error loading artists:', err);
+      setError(err.message || 'Failed to load artists');
+    } finally {
+      setLoading(false);
+    }
+  }, [devbaseClient]);
+  
+  useEffect(() => {
+    loadArtistsAndInitialVideos();
+  }, [loadArtistsAndInitialVideos]);
 
+  useEffect(() => {
+    if (Object.keys(artists).length === 0) return;
+
+    const videosCollection = collection(db, 'videos');
+    const q = query(videosCollection, where('status', '==', 'active'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allVideos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
       let filteredVideos = allVideos.filter(v => {
         if (!v || v.isBanned === true || v.hiddenFromFeed === true) return false;
-        const artist = artistsMap[v.artistId];
+        const artist = artists[v.artistId];
         if (!artist || artist.isDeleted === true || artist.isBanned === true || artist.isSuspended === true) return false;
         if (activeFeedTab === 'rising') return true;
         
@@ -66,20 +82,32 @@ export function VideoFeedPage() {
       if (activeFeedTab === 'rising') {
         filteredVideos.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0) || (b.createdAt || 0) - (a.createdAt || 0));
       } else {
-        filteredVideos.sort(() => Math.random() - 0.5);
+        // Keep existing order for non-rising to avoid reshuffling on updates
+        setVideos(currentVideos => {
+          const newVideoMap = new Map(filteredVideos.map(v => [v.id, v]));
+          const updatedVideos = currentVideos.map(v => newVideoMap.get(v.id) || v).filter(Boolean);
+          
+          const currentVideoIds = new Set(updatedVideos.map(v => v.id));
+          const newVideos = filteredVideos.filter(v => !currentVideoIds.has(v.id));
+
+          const finalVideos = [...updatedVideos, ...newVideos];
+          if (finalVideos.length > 0 && currentVideos.length === 0) {
+            // Initial random sort
+            return finalVideos.sort(() => Math.random() - 0.5);
+          }
+          return finalVideos;
+        });
       }
-      setVideos(filteredVideos);
-    } catch (err: any) {
-      console.error('Error loading videos:', err);
-      setError(err.message || 'Failed to load videos');
-    } finally {
       setLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    loadVideos();
-  }, [devbaseClient, activeFeedTab]);
+    }, (err) => {
+      console.error('Error with video snapshot:', err);
+      setError(err.message || 'Failed to load videos in real-time');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [artists, activeFeedTab]);
+
   
   const loadBookmarks = async () => {
     if (!user || !devbaseClient) return;
@@ -102,23 +130,6 @@ export function VideoFeedPage() {
         setBookmarkedVideos({});
     }
   }, [user, devbaseClient]);
-
-  useEffect(() => {
-    const handleRankingUpdate = (data: { videoId: string; newScore: number }) => {
-      setVideos(prev => prev.map(v => v.id === data.videoId ? { ...v, rankingScore: data.newScore } : v));
-    };
-    const handleNewVideo = () => {
-      loadVideos();
-    };
-
-    socket.on('spotly:ranking_update', handleRankingUpdate);
-    socket.on('spotly:new_video', handleNewVideo);
-
-    return () => {
-      socket.off('spotly:ranking_update', handleRankingUpdate);
-      socket.off('spotly:new_video', handleNewVideo);
-    };
-  }, []);
 
   const recordView = async (videoId: string) => {
     if (!user || !devbaseClient) return;
@@ -151,16 +162,17 @@ export function VideoFeedPage() {
     const video = videos[currentIndex];
     const field = isTop ? 'topCount' : 'flopCount';
 
+    // Optimistic UI update
     setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) + 1 } : v));
 
     try {
-      const updatedVideo = await devbaseClient.updateEntity('videos', video.id, { [field]: (video[field] || 0) + 1 });
-      setVideos(prev => prev.map((v, i) => i === currentIndex ? updatedVideo : v));
-      socket.emit('spotly:ranking_update', { videoId: video.id, newScore: updatedVideo.rankingScore });
-      nextVideo();
+        await devbaseClient.updateEntity('videos', video.id, { [field]: (video[field] || 0) + 1 });
+        // No need to emit, Firestore listener will catch the update
+        nextVideo();
     } catch (error) {
-      addToast('Failed to vote', 'error');
-      setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) - 1 } : v));
+        addToast('Failed to vote', 'error');
+        // Revert optimistic update
+        setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) - 1 } : v));
     }
   };
 
@@ -188,9 +200,8 @@ export function VideoFeedPage() {
       });
 
       const countField = interactionType === 'bookings' ? 'bookCount' : 'adoptCount';
-      const updatedVideo = await devbaseClient.updateEntity('videos', video.id, { [countField]: (video[countField] || 0) + 1 });
+      await devbaseClient.updateEntity('videos', video.id, { [countField]: (video[countField] || 0) + 1 });
       
-      setVideos(prev => prev.map((v, i) => i === currentIndex ? updatedVideo : v));
       addToast(`${interactionType.slice(0, -1)} created successfully!`, 'success');
     } catch (error) {
       console.error(`Error creating ${interactionType}:`, error);
