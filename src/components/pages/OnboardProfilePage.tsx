@@ -57,8 +57,7 @@ export function OnboardProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        // We can't get user's display name or photo from Solana wallet
-        // This remains empty, users have to fill it.
+        // This remains empty as per original logic.
     }, [user, loadingUser]);
     
     useEffect(() => {
