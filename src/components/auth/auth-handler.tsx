@@ -1,87 +1,127 @@
-
 "use client";
-import { useEffect, useState, useCallback } from 'react';
-import { SplashScreen } from '../nejma/splash-screen';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+
+import { useEffect, useState, useCallback } from "react";
+import { SplashScreen } from "../nejma/splash-screen";
+import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export function AuthHandler({ children }: { children: React.ReactNode }) {
-  const { publicKey, connecting, connected } = useWallet();
+  const { publicKey, connected, connecting } = useWallet();
+
   const [isEnsuringProfile, setIsEnsuringProfile] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [walletReady, setWalletReady] = useState(false);
 
+  // ---------- 1. SPLASH ----------
   useEffect(() => {
-    const splashTimer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000); 
-
-    return () => clearTimeout(splashTimer);
+    const timer = setTimeout(() => setShowSplash(false), 1500);
+    return () => clearTimeout(timer);
   }, []);
 
-  const ensureUserProfile = useCallback(async () => {
-    if (!publicKey || !connected) {
+  // ---------- 2. WAIT FOR WALLET TO FINISH INITIALIZING ----------
+  useEffect(() => {
+    // Wallet adapter can briefly report connected:false while initializing
+    if (!connecting && publicKey) {
+      setWalletReady(true);
+    } else if (!connecting && !publicKey) {
+      setWalletReady(false); // not connected, but ready
       setIsEnsuringProfile(false);
-      return;
     }
+  }, [connecting, publicKey]);
+
+  // ---------- 3. CREATE / LOAD FIRESTORE PROFILE ----------
+  const ensureUserProfile = useCallback(async () => {
+    if (!walletReady || !publicKey) return;
 
     setIsEnsuringProfile(true);
+
     try {
-      const usersCollection = collection(db, 'users');
-      const q = query(usersCollection, where('walletAddress', '==', publicKey.toBase58()));
-      const usersSnapshot = await getDocs(q);
-      
-      if (usersSnapshot.empty) {
-        console.log(`Creating new user profile for wallet: ${publicKey.toBase58()}`);
-        const username = `user${publicKey.toBase58().slice(0, 6)}`;
-        
-        const newUserRef = await addDoc(usersCollection, {
-          walletAddress: publicKey.toBase58(),
-          username: username,
-          bio: '',
-          role: 'fan',
+      const wallet = publicKey.toBase58();
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("walletAddress", "==", wallet));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        console.log(`Creating Firestore user for wallet ${wallet}`);
+
+        const username = "user" + wallet.slice(0, 6);
+
+        const newUser = await addDoc(usersRef, {
+          walletAddress: wallet,
+          username,
+          bio: "",
+          role: "fan",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-        await updateDoc(doc(db, 'users', newUserRef.id), { userId: newUserRef.id });
-        console.log('User profile created successfully.');
+
+        await updateDoc(doc(db, "users", newUser.id), {
+          userId: newUser.id,
+        });
       } else {
-        const userDoc = usersSnapshot.docs[0];
-        const existingUser = userDoc.data();
-        // This ensures old profiles get the userId field if they're missing it
-        if (!existingUser.userId || existingUser.userId !== userDoc.id) {
-          await updateDoc(userDoc.ref, { userId: userDoc.id });
+        // Ensure legacy users have userId
+        const docSnap = snap.docs[0];
+        const data = docSnap.data();
+
+        if (!data.userId || data.userId !== docSnap.id) {
+          await updateDoc(docSnap.ref, { userId: docSnap.id });
         }
       }
-    } catch (error) {
-      console.error('Error ensuring user profile:', error);
+    } catch (err) {
+      console.error("Error ensuring Firestore profile:", err);
     } finally {
       setIsEnsuringProfile(false);
     }
-  }, [publicKey, connected]);
+  }, [walletReady, publicKey]);
 
+  // ---------- 4. RUN PROFILE CHECK WHEN READY ----------
   useEffect(() => {
-    if (connected && publicKey) {
+    if (walletReady && connected) {
       ensureUserProfile();
-    } else if (!connecting) {
-        setIsEnsuringProfile(false);
     }
-  }, [connecting, connected, publicKey, ensureUserProfile]);
-  
+  }, [walletReady, connected, ensureUserProfile]);
+
+  // ---------- 5. LOADING STATES ----------
   if (showSplash) {
     return <SplashScreen />;
   }
 
-  const showLoading = connecting || (connected && isEnsuringProfile);
+  const showLoading =
+    connecting ||
+    (walletReady && connected && isEnsuringProfile);
 
   if (showLoading) {
     return (
-        <div className="flex items-center justify-center bg-background" style={{ height: '100vh', width: '100vw', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
-            <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-foreground">{connecting ? "Connecting to wallet..." : "Verifying profile..."}</p>
-            </div>
+      <div
+        className="flex items-center justify-center bg-background"
+        style={{
+          height: "100vh",
+          width: "100vw",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          zIndex: 9999,
+        }}
+      >
+        <div className="text-center">
+          <div className="animate-spin h-16 w-16 border-t-2 border-b-2 border-primary mx-auto mb-4 rounded-full"></div>
+          <p className="text-foreground">
+            {connecting
+              ? "Connecting to wallet..."
+              : "Verifying profile..."}
+          </p>
         </div>
+      </div>
     );
   }
 
