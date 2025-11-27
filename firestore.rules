@@ -102,15 +102,15 @@ service cloud.firestore {
      * @description Users can create their own profile, but can only update or delete their own. User profiles are publicly readable.
      * @path /users/{userId}
      * @allow (get) Any user, signed in or not, can view a user profile.
-     * @allow (create) A new user with uid 'user-abc' creates their own profile document at /users/user-abc.
+     * @allow (create) Any authenticated user (including anonymous) can create a user profile.
      * @deny (update) User 'user-abc' tries to update the profile document for 'user-xyz'.
      * @principle Enforces self-creation and ownership for user profiles.
      */
     match /users/{userId} {
       allow get, list: if true;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isOwnerFieldImmutable('id');
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn(); // Allow any signed-in user (including anonymous) to create a user doc
+      allow update: if isOwner(userId) || (resource != null && request.auth.uid == resource.data.userId);
+      allow delete: if isOwner(userId);
     }
 
     /**

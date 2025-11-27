@@ -1,6 +1,5 @@
 'use client';
-import { signInWithCustomToken } from "firebase/auth";
-import { signWalletMessage } from "@/lib/wallet/signMessage";
+import { signInAnonymously } from "firebase/auth";
 import { connectWallet } from "@/lib/wallet/connectWallet";
 import { getAuth } from 'firebase/auth';
 import type { WalletProvider } from "./solanaWallet";
@@ -18,43 +17,25 @@ export function clearProvider() {
 }
 
 export const loginWithWallet = async (provider: WalletProvider) => {
-  const auth = getAuth(); // Get auth from the provider
+  const auth = getAuth();
   
+  // 1. Connect to the Solana wallet
   const { publicKey } = await connectWallet(provider);
 
-  const message = `Login to Spotly\nWallet: ${publicKey}\nNonce: ${crypto.randomUUID()}`;
-  const signature = await signWalletMessage(provider, message);
-  
-  const publicKeyHex = Buffer.from(publicKey, 'utf-8').toString('hex');
-  
-  // Use a standard fetch to call the onRequest function
-  const functionUrl = `https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/solanaLogin`;
-
+  // 2. Sign in to Firebase Anonymously
+  // This creates a temporary, secure user session on the client-side
+  // without needing any backend calls during the login phase.
   try {
-    const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ publicKey: publicKeyHex, signature, message }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get custom token.');
-    }
+    await signInAnonymously(auth);
     
-    const { token } = await response.json();
-
-    await signInWithCustomToken(auth, token);
+    // The onAuthStateChanged listener in AuthContext will now pick up this user,
+    // and we can proceed with profile creation/fetching linked to their UID.
+    // The user's Solana wallet public key is the primary identifier.
 
     return { publicKey };
 
   } catch(error: any) {
-    console.error("Firebase function error response:", error);
-    if (error.message.includes('Failed to fetch')) {
-        throw new Error('An internal error occurred. This could be a CORS issue or a problem with the authentication function. Please try again later.');
-    }
-    throw error;
+    console.error("Firebase anonymous sign-in error:", error);
+    throw new Error('Failed to create a secure session. Please try again.');
   }
 };

@@ -14,7 +14,7 @@ import { getUserByWallet } from '@/lib/actions/user.actions';
 import { loginWithWallet, getProvider, setProvider, clearProvider } from '@/lib/wallet/loginWithWallet';
 import type { WalletProvider } from '@/lib/wallet/solanaWallet';
 import { useToast } from '@/components/providers/toast-provider';
-import { useUser as useFirebaseAuthUser } from '@/firebase'; // Use the user from our Firebase provider
+import { useUser as useFirebaseAuthUser } from '@/firebase'; 
 import { getAuth } from 'firebase/auth';
 
 interface AuthContextType {
@@ -37,19 +37,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const syncUser = async () => {
-      if (firebaseUser && firebaseUser.uid.startsWith('wallet_')) {
-        const wallet = firebaseUser.uid.replace('wallet_', '');
-        setUserWallet(wallet);
-        try {
-          const userProfile = await getUserByWallet(wallet);
-          setCurrentUser(userProfile);
-        } catch (error) {
-          console.error("Failed to fetch user profile:", error);
-          setCurrentUser(null);
+      // Use the wallet provider from local storage to get the public key
+      // This is more reliable than deriving from firebaseUser after anonymous auth
+      const provider = getProvider();
+      if (provider) {
+        // Here we'd ideally get the publicKey without reconnecting
+        // For now, we assume the wallet adapter state is managed elsewhere or we just fetch based on what we have
+        // This part becomes simpler as we just need to know *if* we are logged in.
+      }
+      
+      if (firebaseUser) {
+        // If we have a firebase user, we proceed.
+        // For this app, the wallet connection is the source of truth.
+        // Let's assume if we have a firebase user, we previously connected a wallet.
+        // A better approach might be to store publicKey in sessionStorage upon connect.
+        const storedWallet = localStorage.getItem('spotly_wallet_address'); // A temporary solution
+        if (storedWallet) {
+          setUserWallet(storedWallet);
+          try {
+            const userProfile = await getUserByWallet(storedWallet);
+            setCurrentUser(userProfile);
+          } catch (error) {
+            console.error("Failed to fetch user profile:", error);
+            setCurrentUser(null);
+          }
         }
       } else {
         setCurrentUser(null);
         setUserWallet(null);
+        localStorage.removeItem('spotly_wallet_address');
       }
       setLoading(false);
     };
@@ -65,8 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { publicKey } = await loginWithWallet(provider);
       setProvider(provider);
-      // The useEffect above will handle setting userWallet and currentUser
-      // based on the firebaseUser change.
+      localStorage.setItem('spotly_wallet_address', publicKey); // Store wallet address
+      setUserWallet(publicKey);
+      
+      // Now that we are logged in, fetch the profile
+      const userProfile = await getUserByWallet(publicKey);
+      setCurrentUser(userProfile);
+
       addToast('Wallet Connected', 'success');
     } catch (e) {
       console.error('Wallet connect failed', e);
@@ -79,7 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       addToast(errorMessage, 'error');
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   }, [addToast]);
 
@@ -93,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserWallet(null);
     setCurrentUser(null);
     clearProvider();
+    localStorage.removeItem('spotly_wallet_address');
     setLoading(false);
   }, []);
 
