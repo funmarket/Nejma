@@ -5,7 +5,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/providers/toast-provider';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
-import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +16,7 @@ import Image from 'next/image';
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { sanitizeUrl } from '@/lib/utils';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube,
@@ -109,7 +109,7 @@ export function OnboardProfilePage() {
     }, [formData.socialLinks]);
     
     const parsedExtraLinks = useMemo(() => {
-        try { return JSON.parse(formData.extraLinks || '[]'); } catch { return []; }
+        try { const links = JSON.parse(formData.extraLinks || '[]'); return Array.isArray(links) ? links : []; } catch { return []; }
     }, [formData.extraLinks]);
 
     const handleSocialLinkChange = (platform: string, value: string) => {
@@ -326,28 +326,36 @@ export function OnboardProfilePage() {
                             </div>
                             )}
                             <div className="space-y-4">
-                                <Label htmlFor="username">Username *</Label>
-                                <Input id="username" value={formData.username || ''} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder={type === 'artist' ? 'Your stage name' : 'Your username'} />
-                            
-                                <Label htmlFor="bio">Bio</Label>
-                                <Textarea id="bio" value={formData.bio || ''} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
-
-                                <Label htmlFor="skills">Skills</Label>
-                                <Input id="skills" value={formData.skills || ''} onChange={e => setFormData({ ...formData, skills: e.target.value })} placeholder="e.g., Vocals, Guitar, Songwriting" />
-
-                                <Label htmlFor="tags">Tags</Label>
-                                <Input id="tags" value={formData.tags || ''} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g., pop, indie, lofi (comma-separated)" />
-                                
-                                <Label htmlFor="location">Location</Label>
-                                <Input id="location" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
-
-                                <Label htmlFor="profilePhoto">Profile Photo URL</Label>
-                                <Input id="profilePhoto" value={formData.profilePhotoUrl || ''} onChange={e => setFormData({ ...formData, profilePhotoUrl: e.target.value })} placeholder="https://..." />
-                                {formData.profilePhotoUrl && <Image src={formData.profilePhotoUrl} alt="Profile preview" width={80} height={80} className="w-20 h-20 rounded-full object-cover mt-2" />}
-
-                                <Label htmlFor="bannerPhoto">Banner Photo URL</Label>
-                                <Input id="bannerPhoto" value={formData.bannerPhotoUrl || ''} onChange={e => setFormData({ ...formData, bannerPhotoUrl: e.target.value })} placeholder="https://..." />
-                                {formData.bannerPhotoUrl && <Image src={formData.bannerPhotoUrl} alt="Banner preview" width={400} height={150} className="w-full h-32 object-cover rounded-lg mt-2" />}
+                                <div>
+                                    <Label htmlFor="username">Username *</Label>
+                                    <Input id="username" value={formData.username || ''} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder={type === 'artist' ? 'Your stage name' : 'Your username'} />
+                                </div>
+                                <div>
+                                    <Label htmlFor="bio">Bio</Label>
+                                    <Textarea id="bio" value={formData.bio || ''} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
+                                </div>
+                                <div>
+                                    <Label htmlFor="skills">Skills</Label>
+                                    <Input id="skills" value={formData.skills || ''} onChange={e => setFormData({ ...formData, skills: e.target.value })} placeholder="e.g., Vocals, Guitar, Songwriting" />
+                                </div>
+                                <div>
+                                    <Label htmlFor="tags">Tags</Label>
+                                    <Input id="tags" value={formData.tags || ''} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g., pop, indie, lofi (comma-separated)" />
+                                </div>
+                                <div>
+                                    <Label htmlFor="location">Location</Label>
+                                    <Input id="location" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
+                                </div>
+                                <div>
+                                    <Label htmlFor="profilePhoto">Profile Photo URL</Label>
+                                    <Input id="profilePhoto" value={formData.profilePhotoUrl || ''} onChange={e => setFormData({ ...formData, profilePhotoUrl: e.target.value })} placeholder="https://..." />
+                                    {formData.profilePhotoUrl && <Image src={formData.profilePhotoUrl} alt="Profile preview" width={80} height={80} className="w-20 h-20 rounded-full object-cover mt-2" />}
+                                </div>
+                                <div>
+                                    <Label htmlFor="bannerPhoto">Banner Photo URL</Label>
+                                    <Input id="bannerPhoto" value={formData.bannerPhotoUrl || ''} onChange={e => setFormData({ ...formData, bannerPhotoUrl: e.target.value })} placeholder="https://..." />
+                                    {formData.bannerPhotoUrl && <Image src={formData.bannerPhotoUrl} alt="Banner preview" width={400} height={150} className="w-full h-32 object-cover rounded-lg mt-2" />}
+                                </div>
                             </div>
                             
                             {isArtistChecked && renderArtistFields()}
@@ -373,6 +381,8 @@ export function OnboardProfilePage() {
     );
 }
       
+    
+
     
 
     

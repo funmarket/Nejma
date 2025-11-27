@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -13,11 +14,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap, LogOut } from 'lucide-react';
-import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/hooks/use-user';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { sanitizeUrl } from '@/lib/utils';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
@@ -102,7 +103,7 @@ export function PublicProfilePage() {
     }, [formData.socialLinks]);
     
     const parsedExtraLinks = useMemo(() => {
-        try { return JSON.parse(formData.extraLinks || '[]'); } catch { return []; }
+        try { const links = JSON.parse(formData.extraLinks || '[]'); return Array.isArray(links) ? links : []; } catch { return []; }
     }, [formData.extraLinks]);
 
     const handleSocialLinkChange = (platform: string, value: string) => {
@@ -156,7 +157,8 @@ export function PublicProfilePage() {
             if(formData.username !== username) {
                 router.push(`/u/${formData.username}`);
             } else {
-                setUser({ ...user, ...updatedData });
+                // Manually update the local user state to reflect changes immediately
+                setUser((prevUser: any) => ({ ...prevUser, ...updatedData }));
             }
         } catch (error) {
             console.error(error);
@@ -171,6 +173,7 @@ export function PublicProfilePage() {
         try {
             await deleteDoc(doc(db, 'users', user.id));
             addToast('Profile deleted successfully', 'success');
+            disconnect();
             router.push('/onboarding');
         } catch (error) {
             addToast('Failed to delete profile', 'error');
@@ -278,7 +281,7 @@ export function PublicProfilePage() {
             <Card className="max-w-4xl mx-auto rounded-none sm:rounded-b-2xl border-x-0 border-t-0 sm:border-x sm:border-b">
                 <div className="relative w-full aspect-[3/1] bg-gradient-to-r from-primary to-pink-500">
                     {editing ? (
-                        <div className="p-4 space-y-2">
+                        <div className="p-4 space-y-2 bg-card h-full">
                            <Label>Banner Photo URL</Label>
                            <Input value={formData.bannerPhotoUrl || ''} onChange={e=>setFormData({...formData, bannerPhotoUrl: e.target.value})} placeholder="https://..." />
                            {formData.bannerPhotoUrl && <Image src={formData.bannerPhotoUrl} alt="Banner preview" width={400} height={100} className="w-full h-24 object-cover rounded-lg mt-2" />}
@@ -351,7 +354,13 @@ export function PublicProfilePage() {
                                 {user.talentCategory && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium text-sm capitalize">{user.talentCategory}</span>}
                             </div>
                             <p className="text-muted-foreground whitespace-pre-wrap">{user.bio || ''}</p>
-                            {user.location && <p className="text-sm text-muted-foreground mt-2">{user.location}</p>}
+                            {(user.skills || user.tags || user.location) && (
+                                <div className="mt-4 text-sm text-muted-foreground space-y-1">
+                                    {user.skills && <p><strong>Skills:</strong> {user.skills}</p>}
+                                    {user.tags && <p><strong>Tags:</strong> {user.tags}</p>}
+                                    {user.location && <p><strong>Location:</strong> {user.location}</p>}
+                                </div>
+                            )}
                           </>
                         )}
                     </div>
@@ -417,5 +426,7 @@ export function PublicProfilePage() {
         </div>
     );
 }
+
+    
 
     
