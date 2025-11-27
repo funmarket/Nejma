@@ -13,11 +13,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap } from 'lucide-react';
+import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap, LogOut } from 'lucide-react';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/hooks/use-user';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
@@ -47,6 +48,7 @@ export function PublicProfilePage() {
     const { user: currentUser } = useUser();
     const router = useRouter();
     const { addToast } = useToast();
+    const { disconnect } = useWallet();
 
     const [user, setUser] = useState<any>(null);
     const [videos, setVideos] = useState<any[]>([]);
@@ -143,6 +145,12 @@ export function PublicProfilePage() {
         } catch (error) {
             addToast('Failed to delete profile', 'error');
         }
+    };
+
+    const handleLogout = () => {
+        disconnect().then(() => {
+            router.push('/');
+        });
     };
     
     if (loading) {
@@ -249,8 +257,12 @@ export function PublicProfilePage() {
                     ) : user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
                     
                     {isOwnProfile && !editing && (
-                        <div className="absolute top-4 right-4 flex gap-2">
+                        <div className="absolute top-4 right-4 flex flex-col gap-2">
                             <Button onClick={() => setEditing(true)} size="sm">Edit Profile</Button>
+                            <Button onClick={handleLogout} variant="secondary" size="sm">
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </Button>
                         </div>
                     )}
                      {isOwnProfile && editing && (
@@ -368,3 +380,5 @@ export function PublicProfilePage() {
         </div>
     );
 }
+
+    
