@@ -47,7 +47,6 @@ async function isUsernameTaken(username: string, currentUserId: string | null): 
     const q = query(collection(db, 'users'), where('username', '==', username));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return false;
-    // If we are checking for an existing user, make sure the found user isn't themselves
     if (currentUserId && snapshot.docs[0].id === currentUserId) {
         return false;
     }
@@ -79,45 +78,36 @@ export function PublicProfilePage() {
 
     const loadProfile = async (currentUsername: string) => {
         setLoading(true);
-        const userData = await getUserByUsername(currentUsername);
-        if (userData) {
-            setUser(userData);
-            const initialFormData = {
-                ...userData,
-                socialLinks: userData.socialLinks || JSON.stringify({}),
-                extraLinks: userData.extraLinks || JSON.stringify([]),
-                talentSubcategories: Array.isArray(userData.talentSubcategories) ? userData.talentSubcategories : [],
-                skills: userData.skills || '',
-                tags: userData.tags || '',
-            };
-            setFormData(initialFormData);
-            
-            // Set initial role checkboxes
-            if (userData.role === 'artist') {
-                setIsArtistChecked(true);
-                // If they are an artist and also can do business, check business too
-                if (userData.isBusiness) { // Assuming a potential field `isBusiness`
-                     setIsBusinessChecked(true);
-                } else {
-                     setIsBusinessChecked(false);
-                }
-            } else if (userData.role === 'business') {
-                setIsBusinessChecked(true);
-                setIsArtistChecked(false);
-            } else {
-                setIsArtistChecked(false);
-                setIsBusinessChecked(false);
-            }
+        try {
+            const userData = await getUserByUsername(currentUsername);
+            if (userData) {
+                setUser(userData);
+                const initialFormData = {
+                    ...userData,
+                    skills: userData.skills || '',
+                    tags: userData.tags || '',
+                    socialLinks: userData.socialLinks || JSON.stringify({}),
+                    extraLinks: userData.extraLinks || JSON.stringify([]),
+                    talentSubcategories: Array.isArray(userData.talentSubcategories) ? userData.talentSubcategories : [],
+                };
+                setFormData(initialFormData);
+                
+                setIsArtistChecked(userData.role === 'artist');
+                setIsBusinessChecked(userData.role === 'business');
 
-            const userVideos = await getVideosForArtist(userData.userId || userData.id);
-            setVideos(userVideos);
-        } else {
-            // If user not found, maybe redirect or show a 'not found' message
-            setUser(null);
-            setVideos([]);
-            addToast("User profile not found.", "error");
+                const userVideos = await getVideosForArtist(userData.userId || userData.id);
+                setVideos(userVideos);
+            } else {
+                setUser(null);
+                setVideos([]);
+                addToast("User profile not found.", "error");
+            }
+        } catch (error) {
+            console.error("Error loading profile:", error);
+            addToast("Failed to load profile.", "error");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
 
@@ -163,7 +153,6 @@ export function PublicProfilePage() {
         if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
         
         setIsSaving(true);
-        // 1. Username validation
         if (!formData.username) {
             addToast('Username is required.', 'error');
             setIsSaving(false);
@@ -176,20 +165,17 @@ export function PublicProfilePage() {
             return;
         }
 
-        // 2. Role computation
         let role = 'fan';
-        if (isArtistChecked && isBusinessChecked) role = 'artist'; // Artist with business capabilities
+        if (isArtistChecked && isBusinessChecked) role = 'artist';
         else if (isArtistChecked) role = 'artist';
         else if (isBusinessChecked) role = 'business';
 
-        // 3. Role-based validation
         if (role === 'artist' && !formData.talentCategory) {
             addToast('Please select a talent category for an artist profile.', 'error');
             setIsSaving(false);
             return;
         }
-
-        // 4. Sanitize all URLs
+        
         const sanitizedSocialLinks = Object.entries(parsedSocialLinks).reduce((acc, [key, value]) => {
             acc[key] = sanitizeUrl(value as string) || '';
             return acc;
@@ -200,11 +186,10 @@ export function PublicProfilePage() {
                 label: link.label,
                 url: sanitizeUrl(link.url) || ''
             }))
-            .filter(link => link.url); // Filter out links that became empty after sanitization
+            .filter(link => link.url);
 
         try {
             const updatedData: any = { 
-                ...formData, 
                 username: formData.username,
                 bio: formData.bio || '',
                 skills: formData.skills || '',
@@ -219,22 +204,16 @@ export function PublicProfilePage() {
                 talentSubcategories: role === 'artist' ? formData.talentSubcategories : [],
                 updatedAt: serverTimestamp()
             };
-            // Prevent overwriting immutable or server-set fields
-            delete updatedData.id;
-            delete updatedData.createdAt; 
             
             await updateDoc(doc(db, 'users', user.id), updatedData);
             
             setEditing(false);
             addToast('Profile updated successfully!', 'success');
 
-            // 5. Handle username change redirect
             if(formData.username !== username) {
-                // Important: Use replace to not break the back button, and let useEffect handle reload
                 router.replace(`/u/${formData.username}`);
             } else {
-                // Manually update the local user state to reflect changes immediately
-                setUser((prevUser: any) => ({ ...prevUser, ...updatedData }));
+                setUser((prevUser: any) => ({ ...prevUser, ...updatedData, socialLinks: JSON.stringify(sanitizedSocialLinks), extraLinks: JSON.stringify(sanitizedExtraLinks) }));
             }
         } catch (error) {
             console.error(error);
@@ -264,14 +243,13 @@ export function PublicProfilePage() {
 
     const cancelEditing = () => {
         setEditing(false);
-        // Reset form data to the original user state
         const originalFormData = {
             ...user,
+            skills: user.skills || '',
+            tags: user.tags || '',
             socialLinks: user.socialLinks || JSON.stringify({}),
             extraLinks: user.extraLinks || JSON.stringify([]),
             talentSubcategories: Array.isArray(user.talentSubcategories) ? user.talentSubcategories : [],
-            skills: user.skills || '',
-            tags: user.tags || '',
         };
         setFormData(originalFormData);
         setIsArtistChecked(user.role === 'artist');
@@ -285,8 +263,8 @@ export function PublicProfilePage() {
         return <div className="min-h-screen flex items-center justify-center"><p>User not found</p></div>;
     }
 
-    const socialLinks = user.socialLinks ? JSON.parse(user.socialLinks) : {};
-    const extraLinks = user.extraLinks ? JSON.parse(user.extraLinks) : [];
+    const socialLinks = formData.socialLinks ? JSON.parse(formData.socialLinks) : {};
+    const extraLinks = formData.extraLinks ? JSON.parse(formData.extraLinks) : [];
 
     const renderSocialLinks = () => (
         <div className="flex flex-wrap gap-2">
@@ -542,5 +520,3 @@ export function PublicProfilePage() {
         </div>
     );
 }
-
-    
