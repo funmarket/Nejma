@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -215,7 +216,7 @@ export function PublicProfilePage() {
                     {editing ? (
                         <div className="p-4 space-y-2">
                            <Label>Banner Photo URL</Label>
-                           <Input value={formData.bannerPhotoUrl} onChange={e=>setFormData({...formData, bannerPhotoUrl: e.target.value})} placeholder="https://..." />
+                           <Input value={formData.bannerPhotoUrl || ''} onChange={e=>setFormData({...formData, bannerPhotoUrl: e.target.value})} placeholder="https://..." />
                         </div>
                     ) : user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
                     
@@ -245,7 +246,7 @@ export function PublicProfilePage() {
                     </div>
                     
                     <div className="mt-10 sm:mt-16">
-                        {editing ? <Input value={formData.username} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" /> : <h1 className="text-2xl font-bold">@{user.username}</h1>}
+                        {editing ? <Input value={formData.username || ''} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" /> : <h1 className="text-2xl font-bold">@{user.username}</h1>}
                         
                         <div className="flex flex-wrap gap-2 my-3">
                             <span className="px-3 py-1 rounded-full bg-primary/20 text-primary font-medium text-sm border border-primary/50 capitalize">{user.role}</span>
@@ -254,11 +255,11 @@ export function PublicProfilePage() {
                         
                         {editing ? (
                             <>
-                                <Textarea value={formData.bio} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
-                                <Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Location" className="text-base" />
+                                <Textarea value={formData.bio || ''} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
+                                <Input value={formData.location || ''} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Location" className="text-base" />
                                 <div className="mt-4">
                                     <Label>Profile Photo URL</Label>
-                                    <Input value={formData.profilePhotoUrl} onChange={e=>setFormData({...formData, profilePhotoUrl: e.target.value})} placeholder="https://..." />
+                                    <Input value={formData.profilePhotoUrl || ''} onChange={e=>setFormData({...formData, profilePhotoUrl: e.target.value})} placeholder="https://..." />
                                 </div>
                             </>
                         ) : (
