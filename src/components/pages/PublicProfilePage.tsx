@@ -45,7 +45,12 @@ export function PublicProfilePage() {
         const userData = await devbaseHelpers.getUserByUsername(devbaseClient, username);
         if (userData) {
             setUser(userData);
-            setFormData(userData);
+            setFormData({
+                ...userData,
+                socialLinks: userData.socialLinks || JSON.stringify({}),
+                extraLinks: userData.extraLinks || JSON.stringify([]),
+                talentSubcategories: userData.talentSubcategories || JSON.stringify([]),
+            });
             const userVideos = await devbaseHelpers.getVideosForArtist(devbaseClient, userData.userId || userData.id);
             setVideos(userVideos);
         }
@@ -55,6 +60,34 @@ export function PublicProfilePage() {
     useEffect(() => {
         loadProfile();
     }, [devbaseClient, username]);
+
+    const parsedSocialLinks = useMemo(() => {
+        try { return JSON.parse(formData.socialLinks || '{}'); } catch { return {}; }
+    }, [formData.socialLinks]);
+    
+    const parsedExtraLinks = useMemo(() => {
+        try { return JSON.parse(formData.extraLinks || '[]'); } catch { return []; }
+    }, [formData.extraLinks]);
+
+    const handleSocialLinkChange = (platform: string, value: string) => {
+        setFormData(prev => ({...prev, socialLinks: JSON.stringify({...parsedSocialLinks, [platform]: value})}));
+    };
+
+    const handleExtraLinkChange = (index: number, field: 'label' | 'url', value: string) => {
+        const newLinks = [...parsedExtraLinks];
+        newLinks[index] = { ...newLinks[index], [field]: value };
+        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
+    };
+
+    const addExtraLink = () => {
+        if (parsedExtraLinks.length >= 5) return;
+        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify([...parsedExtraLinks, { label: '', url: '' }]) }));
+    };
+    
+    const removeExtraLink = (index: number) => {
+        const newLinks = parsedExtraLinks.filter((_: any, i: number) => i !== index);
+        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
+    };
 
     const handleSave = async () => {
         if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
@@ -107,12 +140,85 @@ export function PublicProfilePage() {
             ))}
         </div>
     );
+    
+    const renderEditArtistFields = () => (
+        <div className="mt-6 border-t border-border pt-6 space-y-6">
+             <div className="space-y-4 mb-4">
+                <div>
+                    <Label>Talent Category *</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+                        {Object.entries(TALENT_CATEGORIES).map(([key, cat]) => (
+                            <Button key={key} type="button" onClick={() => setFormData({...formData, talentCategory: key, talentSubcategories: JSON.stringify([])})} variant={formData.talentCategory === key ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
+                                {cat.label}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+                {formData.talentCategory && TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES] && (
+                    <div>
+                        <Label>Subcategories (Select one or more)</Label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                        {TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories.map(sub => {
+                            const currentSubs = JSON.parse(formData.talentSubcategories);
+                            const isSelected = currentSubs.includes(sub.value);
+                            return (
+                                <Button key={sub.value} type="button" onClick={() => {
+                                    const newSubs = isSelected ? currentSubs.filter((s:string) => s !== sub.value) : [...currentSubs, sub.value];
+                                    setFormData({...formData, talentSubcategories: JSON.stringify(newSubs)});
+                                }} variant={isSelected ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
+                                    {sub.label}
+                                </Button>
+                            );
+                        })}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="border-t border-border pt-6 mt-6">
+                <h3 className="text-lg font-bold mb-3">Social & External Links</h3>
+                <div className="space-y-4">
+                    {Object.entries(socialIcons).map(([key, Icon]) => (
+                        <div key={key}>
+                            <Label className="block text-sm text-muted-foreground mb-2 flex items-center gap-2"><Icon className="w-4 h-4" /> {key.charAt(0).toUpperCase() + key.slice(1)}</Label>
+                            <Input type="url" value={parsedSocialLinks[key] || ''} onChange={e => handleSocialLinkChange(key, e.target.value)} placeholder={`https://...`} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="border-t border-border pt-6 mt-6">
+                <Button type="button" onClick={() => setShowExtraLinks(!showExtraLinks)} variant="link" className="p-0 h-auto flex items-center gap-2 text-primary hover:text-primary/80 mb-3">
+                    {showExtraLinks ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <span>Additional Links (Optional, Max 5)</span>
+                </Button>
+                {showExtraLinks && <div className="space-y-3">
+                    {parsedExtraLinks.map((link: any, index: number) => (
+                        <div key={index} className="flex gap-2 items-center">
+                            <Input type="text" value={link.label || ''} onChange={e => handleExtraLinkChange(index, 'label', e.target.value)} placeholder="Label" className="w-1/3" />
+                            <Input type="url" value={link.url || ''} onChange={e => handleExtraLinkChange(index, 'url', e.target.value)} placeholder="https://..." className="flex-1" />
+                            <Button type="button" onClick={() => removeExtraLink(index)} variant="destructive" size="icon"><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                    ))}
+                    {parsedExtraLinks.length < 5 && (
+                        <Button type="button" onClick={addExtraLink} variant="outline" className="w-full"><Plus className="w-4 h-4 mr-2" /> Add Link</Button>
+                    )}
+                </div>}
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-background pb-20">
             <Card className="max-w-4xl mx-auto rounded-none sm:rounded-b-2xl border-x-0 border-t-0 sm:border-x sm:border-b">
                 <div className="relative w-full aspect-[3/1] bg-gradient-to-r from-primary to-pink-500">
-                    {user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
+                    {editing ? (
+                        <div className="p-4 space-y-2">
+                           <Label>Banner Photo URL</Label>
+                           <Input value={formData.bannerPhotoUrl} onChange={e=>setFormData({...formData, bannerPhotoUrl: e.target.value})} placeholder="https://..." />
+                        </div>
+                    ) : user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
+                    
                     {isOwnProfile && !editing && (
                         <div className="absolute top-4 right-4 flex gap-2">
                             <Button onClick={() => setEditing(true)} size="sm">Edit Profile</Button>
@@ -129,7 +235,11 @@ export function PublicProfilePage() {
                     <div className="relative">
                         <div className="absolute -top-16 sm:-top-20">
                             <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary flex items-center justify-center text-white font-bold border-4 border-card overflow-hidden shadow-lg">
-                                {user.profilePhotoUrl ? <Image src={user.profilePhotoUrl} alt={user.username} width={128} height={128} className="w-full h-full object-cover" /> : <span className="text-4xl">{user.username?.[0]?.toUpperCase()}</span>}
+                                {editing ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-card">
+                                        <Button variant="ghost" size="sm" className="text-xs">Edit Photo</Button>
+                                    </div>
+                                ) : (user.profilePhotoUrl ? <Image src={user.profilePhotoUrl} alt={user.username} width={128} height={128} className="w-full h-full object-cover" /> : <span className="text-4xl">{user.username?.[0]?.toUpperCase()}</span>)}
                             </div>
                         </div>
                     </div>
@@ -142,10 +252,26 @@ export function PublicProfilePage() {
                             {user.talentCategory && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium text-sm capitalize">{user.talentCategory}</span>}
                         </div>
                         
-                        {editing ? <Textarea value={formData.bio} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base" /> : <p className="text-muted-foreground whitespace-pre-wrap">{user.bio}</p>}
+                        {editing ? (
+                            <>
+                                <Textarea value={formData.bio} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
+                                <Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Location" className="text-base" />
+                                <div className="mt-4">
+                                    <Label>Profile Photo URL</Label>
+                                    <Input value={formData.profilePhotoUrl} onChange={e=>setFormData({...formData, profilePhotoUrl: e.target.value})} placeholder="https://..." />
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                               <p className="text-muted-foreground whitespace-pre-wrap">{user.bio}</p>
+                               {user.location && <p className="text-sm text-muted-foreground mt-2">{user.location}</p>}
+                            </>
+                        )}
                     </div>
-
-                    {(Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && !editing && <div className="mt-6">{renderSocialLinks()}</div>}
+                    
+                    {editing ? renderEditArtistFields() : (
+                        (Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && <div className="mt-6">{renderSocialLinks()}</div>
+                    )}
 
                 </CardContent>
             </Card>

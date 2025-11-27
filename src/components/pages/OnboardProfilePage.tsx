@@ -269,6 +269,9 @@ export function OnboardProfilePage() {
                             
                                 <Label htmlFor="bio">Bio</Label>
                                 <Textarea id="bio" value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
+                                
+                                <Label htmlFor="location">Location</Label>
+                                <Input id="location" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
 
                                 <Label htmlFor="profilePhoto">Profile Photo URL</Label>
                                 <Input id="profilePhoto" value={formData.profilePhotoUrl} onChange={e => setFormData({ ...formData, profilePhotoUrl: e.target.value })} placeholder="https://..." />
