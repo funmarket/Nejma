@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
-import { Skeleton } from '@/components/ui/skeleton';
 import { SplashScreen } from '../nejma/splash-screen';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export function AuthHandler({ children }: { children: React.ReactNode }) {
-  const { devbaseClient, user, loadingUser } = useDevapp();
+  const { devbaseClient } = useDevapp();
+  const { publicKey, connecting, connected } = useWallet();
   const [isEnsuringProfile, setIsEnsuringProfile] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -19,24 +20,22 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const ensureUserProfile = async () => {
-      if (loadingUser || showSplash) {
+      if (connecting || showSplash ) {
+        setIsEnsuringProfile(connecting);
         return;
       }
       
-      if (user && devbaseClient) {
+      if (publicKey && connected && devbaseClient) {
         setIsEnsuringProfile(true);
         try {
-          const usersList = await devbaseClient.listEntities('users', { walletAddress: user.uid });
+          const usersList = await devbaseClient.listEntities('users', { walletAddress: publicKey.toBase58() });
           if (usersList.length === 0) {
-            console.log(`Creating new user profile for wallet: ${user.uid}`);
-            const username = user.displayName?.replace(/\s/g, '') || `user${user.uid.slice(0, 6)}`;
-            const photoURL = user.photoURL;
-
+            console.log(`Creating new user profile for wallet: ${publicKey.toBase58()}`);
+            const username = `user${publicKey.toBase58().slice(0, 6)}`;
+            
             const newUser = await devbaseClient.createEntity('users', {
-              walletAddress: user.uid,
-              email: user.email,
+              walletAddress: publicKey.toBase58(),
               username: username,
-              profilePhotoUrl: photoURL,
               bio: '',
               role: 'regular',
               createdAt: Date.now(),
@@ -60,13 +59,13 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
       }
     };
     ensureUserProfile();
-  }, [user, devbaseClient, loadingUser, showSplash]);
+  }, [publicKey, devbaseClient, connecting, connected, showSplash]);
 
   if (showSplash) {
     return <SplashScreen />;
   }
 
-  if (loadingUser || isEnsuringProfile) {
+  if (isEnsuringProfile && connected) {
     return (
         <div className="flex items-center justify-center bg-background" style={{ height: '100vh', width: '100vw', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
             <div className="text-center">

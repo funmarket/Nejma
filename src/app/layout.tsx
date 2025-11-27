@@ -3,6 +3,7 @@ import './globals.css';
 import { DevappProvider } from '@/components/providers/devapp-provider';
 import { ToastProvider } from '@/components/providers/toast-provider';
 import { AuthHandler } from '@/components/auth/auth-handler';
+import SolanaWalletProvider from '@/components/providers/solana-wallet-provider';
 
 export const metadata: Metadata = {
   title: 'Firebase NEJMA',
@@ -22,13 +23,15 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
-        <DevappProvider>
-            <ToastProvider>
-              <AuthHandler>
-                {children}
-              </AuthHandler>
-            </ToastProvider>
-        </DevappProvider>
+        <SolanaWalletProvider>
+          <DevappProvider>
+              <ToastProvider>
+                <AuthHandler>
+                  {children}
+                </AuthHandler>
+              </ToastProvider>
+          </DevappProvider>
+        </SolanaWalletProvider>
       </body>
     </html>
   );

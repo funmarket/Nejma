@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo, createContext, useContext } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut as firebaseSignOut,
-  type User as FirebaseUser,
-} from "firebase/auth";
-import { auth } from '@/lib/firebase';
+import { useMemo, createContext, useContext } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { devbaseClient } from '@/lib/devbase';
 
 type DevappContextValue = {
   devbaseClient: typeof devbaseClient;
   userWallet: string | null;
-  user: FirebaseUser | null;
+  // Deprecating Firebase user object
+  user: { uid: string } | null;
   loadingUser: boolean;
+  // Deprecating Firebase signIn/signOut
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -23,40 +18,21 @@ type DevappContextValue = {
 const DevappContext = createContext<DevappContextValue | undefined>(undefined);
 
 export function DevappProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { publicKey, connecting } = useWallet();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoadingUser(false);
-    });
-    return () => unsub();
-  }, []);
-
-  const signIn = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error during sign-in:", error);
-    }
-  };
-
-  const signOut = async () => {
-    await firebaseSignOut(auth);
-  };
+  const userWallet = useMemo(() => publicKey?.toBase58() ?? null, [publicKey]);
 
   const value = useMemo(
     () => ({
       devbaseClient,
-      userWallet: user?.uid ?? null, // Replaces walletAddress
-      user,
-      loadingUser,
-      signIn,
-      signOut,
+      userWallet: userWallet,
+      // Adapt `user` object to maintain compatibility with existing code that uses `user.uid`
+      user: userWallet ? { uid: userWallet } : null,
+      loadingUser: connecting,
+      signIn: async () => { console.warn("signIn is deprecated. Use Solana Wallet Adapter.") },
+      signOut: async () => { console.warn("signOut is deprecated. Use Solana Wallet Adapter.") },
     }),
-    [user, loadingUser]
+    [userWallet, connecting]
   );
 
   return <DevappContext.Provider value={value}>{children}</DevappContext.Provider>;

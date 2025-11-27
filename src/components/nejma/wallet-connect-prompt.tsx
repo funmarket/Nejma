@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { UserButton } from '@/components/auth/user-button';
 import { Button } from '@/components/ui/button';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 type WalletConnectPromptProps = {
   accountType: string;
@@ -12,21 +13,20 @@ type WalletConnectPromptProps = {
 };
 
 export function WalletConnectPrompt({ accountType, onBack }: WalletConnectPromptProps) {
-  const { user, devbaseClient } = useDevapp();
+  const { devbaseClient } = useDevapp();
+  const { publicKey, connected } = useWallet();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const checkAndRedirect = async () => {
-      if (user && !checking) {
+      if (connected && publicKey && !checking) {
         setChecking(true);
         try {
-          const existingUsers = await devbaseClient.listEntities('users', { walletAddress: user.uid });
+          const existingUsers = await devbaseClient.listEntities('users', { walletAddress: publicKey.toBase58() });
           if (existingUsers.length === 0) {
             router.push(`/create/${accountType}`);
           } else {
-            const existingUser = existingUsers[0];
-            // If user exists but picks a new role, let them proceed to creation page to update role
             router.push(`/create/${accountType}`);
           }
         } catch (error) {
@@ -38,7 +38,7 @@ export function WalletConnectPrompt({ accountType, onBack }: WalletConnectPrompt
       }
     };
     checkAndRedirect();
-  }, [user, accountType, router, devbaseClient, checking]);
+  }, [publicKey, connected, accountType, router, devbaseClient, checking]);
 
   const getAccountTypeDescription = () => {
     switch (accountType) {
@@ -66,7 +66,7 @@ export function WalletConnectPrompt({ accountType, onBack }: WalletConnectPrompt
               <UserButton />
             </div>
             <p className="text-muted-foreground text-center text-sm">
-              Click above to connect with your Google account.
+              Click above to connect your Solana wallet.
             </p>
             {checking && <p className="text-primary">Checking profile...</p>}
             <Button onClick={onBack} variant="secondary" className="mt-4">
