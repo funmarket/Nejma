@@ -16,7 +16,7 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import Image from 'next/image';
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 const socialIcons: Record<string, React.ElementType> = {
@@ -30,7 +30,7 @@ const socialIcons: Record<string, React.ElementType> = {
 };
 
 export function OnboardProfilePage() {
-    const { user, loading: loadingUser } = useUser();
+    const { user, loading: loadingUser } = useAuth();
     const { publicKey } = useWallet();
     const router = useRouter();
     const params = useParams();

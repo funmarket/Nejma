@@ -17,7 +17,7 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
@@ -44,7 +44,7 @@ async function getVideosForArtist(userId: string) {
 export function PublicProfilePage() {
     const params = useParams();
     const username = params.username as string;
-    const { user: currentUser } = useUser();
+    const { user: currentUser } = useAuth();
     const router = useRouter();
     const { addToast } = useToast();
 
@@ -330,7 +330,7 @@ export function PublicProfilePage() {
                      <Card className="bg-card p-6 border-destructive/50">
                         <h3 className="text-destructive font-bold mb-3">Danger Zone</h3>
                         <p className="text-muted-foreground text-sm mb-4">Deleting your profile is permanent and will remove all your data and videos.</p>
-                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete Profile</Button>Ori
+                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete Profile</Button>
                     </Card>
                 </div>
             )}

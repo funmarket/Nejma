@@ -12,10 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFollowing, userRating, commentsCount }: any) {
-  const { user } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   const { addToast } = useToast();
 

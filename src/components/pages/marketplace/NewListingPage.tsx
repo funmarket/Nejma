@@ -7,15 +7,15 @@ import { MARKETPLACE_SUBCATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentsui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function NewListingPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   const { addToast } = useToast();
   

@@ -8,10 +8,10 @@ import { PostComments } from './post-comments';
 import { ServiceAdCard } from './service-ad-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function GossipFeed() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { posts, ads, loading, refreshFeed, comments, ratings, userPostRatings, expandedComments, toggleComments, submitComment, ratePost, userFollows, toggleFollow, feedFilter, setFeedFilter, handleDeleteComment } = useGossipFeed();
 
   if (loading) {
@@ -25,7 +25,9 @@ export function GossipFeed() {
   }
 
   const feedItems = [];
-  posts.forEach((post, index) => {
+  const filteredPosts = posts.filter(post => feedFilter === 'all' || (userFollows && userFollows[post.authorWallet]));
+
+  filteredPosts.forEach((post, index) => {
     feedItems.push(<PostCard key={post.id} post={post} onCommentClick={toggleComments} onRate={ratePost} ratings={ratings} onFollow={toggleFollow} isFollowing={!!userFollows[post.authorWallet]} userRating={userPostRatings[post.id] || 0} commentsCount={post.commentsCount || 0} />);
     if (expandedComments[post.id]) {
       feedItems.push(<PostComments key={`comments-${post.id}`} postId={post.id} comments={comments[post.id] || []} onSubmitComment={submitComment} onDeleteComment={handleDeleteComment} />);

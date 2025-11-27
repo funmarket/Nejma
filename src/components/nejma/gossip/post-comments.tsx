@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function PostComments({ postId, comments, onSubmitComment, onDeleteComment }: any) {
-  const { user } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   
   const [newComment, setNewComment] = useState('');

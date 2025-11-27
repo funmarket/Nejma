@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/components/providers/toast-provider';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function StarRating({ postId, onRate, ratings, initialRating = 0 }: any) {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { addToast } = useToast();
   
   const [hoveredStar, setHoveredStar] = useState(0);

@@ -1,22 +1,12 @@
 
 "use client";
 import { useState, useEffect, useCallback } from 'react';
-import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch, addDoc, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
-
-async function getDocument(collectionName: string, id: string) {
-    const docRef = doc(db, collectionName, id);
-    const snap = await getDocs(docRef as any); // Bug in TS def, getDocs works on single doc
-    if (!snap.empty) {
-        const d = snap.docs[0];
-        return { id: d.id, ...d.data() };
-    }
-    return null;
-}
+import { useAuth } from '@/hooks/use-user';
 
 export function useGossipApi() {
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const createPost = useCallback(async (postData: any) => {
     if (!user) throw new Error("User not authenticated");
@@ -44,9 +34,9 @@ export function useGossipApi() {
     });
 
     const postRef = doc(db, 'gossip_posts', postId);
-    const postSnap = await getDocument('gossip_posts', postId);
-    if(postSnap) {
-        batch.update(postRef, { commentsCount: (postSnap.commentsCount || 0) + 1 });
+    const postSnap = await getDoc(postRef);
+    if(postSnap.exists()) {
+        batch.update(postRef, { commentsCount: (postSnap.data().commentsCount || 0) + 1 });
     }
     
     await batch.commit();
@@ -60,9 +50,9 @@ export function useGossipApi() {
     batch.delete(commentRef);
 
     const postRef = doc(db, 'gossip_posts', postId);
-    const postSnap = await getDocument('gossip_posts', postId);
-    if (postSnap && (postSnap.commentsCount || 0) > 0) {
-        batch.update(postRef, { commentsCount: postSnap.commentsCount - 1 });
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists() && (postSnap.data().commentsCount || 0) > 0) {
+        batch.update(postRef, { commentsCount: postSnap.data().commentsCount - 1 });
     }
 
     await batch.commit();
@@ -123,7 +113,7 @@ export function useGossipApi() {
 
 export function useGossipFeed() {
   const api = useGossipApi();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [posts, setPosts] = useState<any[]>([]);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

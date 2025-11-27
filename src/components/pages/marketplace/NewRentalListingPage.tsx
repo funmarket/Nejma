@@ -12,10 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/hooks/use-user';
 
 export function NewRentalListingPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
