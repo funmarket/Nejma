@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/providers/toast-provider';
 import { createVideo } from '@/lib/actions/video.actions';
-import { parseYouTubeUrl } from '@/lib/utils';
+import { parseYouTubeUrl } from '@/lib/nejma/youtube';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
