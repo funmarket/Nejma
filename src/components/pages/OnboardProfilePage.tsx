@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -56,10 +55,6 @@ export function OnboardProfilePage() {
     const [showExtraLinks, setShowExtraLinks] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        // This remains empty as per original logic.
-    }, [user, loadingUser]);
-    
     useEffect(() => {
         if (type === 'artist') setIsArtistChecked(true);
         if (type === 'business') setIsBusinessChecked(true);
@@ -312,3 +307,5 @@ export function OnboardProfilePage() {
         </div>
     );
 }
+
+    
