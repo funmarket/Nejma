@@ -1,4 +1,5 @@
 
+      
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -270,7 +271,7 @@ export function OnboardProfilePage() {
 
                 <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border">
                     {step === 1 ? (
-                        <div className="space-y-6">
+                        <form onSubmit={(e) => { e.preventDefault(); handleCreateProfile(); }} className="space-y-6">
                             {type !== 'fan' && renderAccountTypeSelection()}
                             <div className="space-y-4">
                                 <Label htmlFor="username">Username *</Label>
@@ -294,10 +295,10 @@ export function OnboardProfilePage() {
                             {isArtistChecked && renderArtistFields()}
                             
                             <div className="flex gap-3 pt-4">
-                                <Button onClick={() => router.push('/onboarding')} variant="outline" className="flex-1">Back</Button>
-                                <Button onClick={handleCreateProfile} disabled={isSaving} className="flex-1">{isSaving ? "Saving..." : "Continue"}</Button>
+                                <Button onClick={() => router.push('/onboarding')} variant="outline" className="flex-1" type="button">Back</Button>
+                                <Button type="submit" disabled={isSaving} className="flex-1">{isSaving ? "Saving..." : "Continue"}</Button>
                             </div>
-                        </div>
+                        </form>
                     ) : (
                         <div className="space-y-4 text-center">
                             <h2 className="text-2xl font-bold">Profile Created!</h2>
@@ -313,3 +314,5 @@ export function OnboardProfilePage() {
         </div>
     );
 }
+      
+    

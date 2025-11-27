@@ -1,15 +1,15 @@
 
+      
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -82,7 +82,7 @@ export function PublicProfilePage() {
             loadProfile();
         }
     }, [username]);
-
+    
     const parsedSocialLinks = useMemo(() => {
         try { return JSON.parse(formData.socialLinks || '{}'); } catch { return {}; }
     }, [formData.socialLinks]);
@@ -102,7 +102,10 @@ export function PublicProfilePage() {
     };
 
     const addExtraLink = () => {
-        if (parsedExtraLinks.length >= 5) return;
+        if (parsedExtraLinks.length >= 5) {
+            addToast('Maximum 5 extra links allowed.', 'error');
+            return;
+        }
         setFormData(prev => ({ ...prev, extraLinks: JSON.stringify([...parsedExtraLinks, { label: '', url: '' }]) }));
     };
     
@@ -381,4 +384,5 @@ export function PublicProfilePage() {
     );
 }
 
+      
     
