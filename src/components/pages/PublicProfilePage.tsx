@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap, LogOut } from 'lucide-react';
@@ -71,31 +72,60 @@ export function PublicProfilePage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
+    const [isArtistChecked, setIsArtistChecked] = useState(false);
+    const [isBusinessChecked, setIsBusinessChecked] = useState(false);
+
     const isOwnProfile = currentUser && user && currentUser.walletAddress === user.walletAddress;
 
-    const loadProfile = async () => {
+    const loadProfile = async (currentUsername: string) => {
         setLoading(true);
-        const userData = await getUserByUsername(username);
+        const userData = await getUserByUsername(currentUsername);
         if (userData) {
             setUser(userData);
-            setFormData({
+            const initialFormData = {
                 ...userData,
                 socialLinks: userData.socialLinks || JSON.stringify({}),
                 extraLinks: userData.extraLinks || JSON.stringify([]),
                 talentSubcategories: Array.isArray(userData.talentSubcategories) ? userData.talentSubcategories : [],
                 skills: userData.skills || '',
                 tags: userData.tags || '',
-            });
+            };
+            setFormData(initialFormData);
+            
+            // Set initial role checkboxes
+            if (userData.role === 'artist') {
+                setIsArtistChecked(true);
+                // If they are an artist and also can do business, check business too
+                if (userData.isBusiness) { // Assuming a potential field `isBusiness`
+                     setIsBusinessChecked(true);
+                } else {
+                     setIsBusinessChecked(false);
+                }
+            } else if (userData.role === 'business') {
+                setIsBusinessChecked(true);
+                setIsArtistChecked(false);
+            } else {
+                setIsArtistChecked(false);
+                setIsBusinessChecked(false);
+            }
+
             const userVideos = await getVideosForArtist(userData.userId || userData.id);
             setVideos(userVideos);
+        } else {
+            // If user not found, maybe redirect or show a 'not found' message
+            setUser(null);
+            setVideos([]);
+            addToast("User profile not found.", "error");
         }
         setLoading(false);
     };
 
+
     useEffect(() => {
         if(username) {
-            loadProfile();
+            loadProfile(username);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [username]);
     
     const parsedSocialLinks = useMemo(() => {
@@ -103,17 +133,17 @@ export function PublicProfilePage() {
     }, [formData.socialLinks]);
     
     const parsedExtraLinks = useMemo(() => {
-        try { const links = JSON.parse(formData.extraLinks || '[]'); return Array.isArray(links) ? links : []; } catch { return []; }
+        try { const links = JSON.parse(formData.extraLinks || '[]'); return Array.isArray(links) ? links.filter(link => link && (link.label || link.url)) : []; } catch { return []; }
     }, [formData.extraLinks]);
 
     const handleSocialLinkChange = (platform: string, value: string) => {
-        setFormData(prev => ({...prev, socialLinks: JSON.stringify({...parsedSocialLinks, [platform]: value})}));
+        setFormData((prev:any) => ({...prev, socialLinks: JSON.stringify({...parsedSocialLinks, [platform]: value})}));
     };
 
     const handleExtraLinkChange = (index: number, field: 'label' | 'url', value: string) => {
         const newLinks = [...parsedExtraLinks];
         newLinks[index] = { ...newLinks[index], [field]: value };
-        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
+        setFormData((prev:any) => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
     };
 
     const addExtraLink = () => {
@@ -121,18 +151,24 @@ export function PublicProfilePage() {
             addToast('Maximum 5 extra links allowed.', 'error');
             return;
         }
-        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify([...parsedExtraLinks, { label: '', url: '' }]) }));
+        setFormData((prev:any) => ({ ...prev, extraLinks: JSON.stringify([...parsedExtraLinks, { label: '', url: '' }]) }));
     };
     
     const removeExtraLink = (index: number) => {
         const newLinks = parsedExtraLinks.filter((_: any, i: number) => i !== index);
-        setFormData(prev => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
+        setFormData((prev:any) => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
     };
 
     const handleSave = async () => {
         if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
         
         setIsSaving(true);
+        // 1. Username validation
+        if (!formData.username) {
+            addToast('Username is required.', 'error');
+            setIsSaving(false);
+            return;
+        }
         const usernameIsTaken = await isUsernameTaken(formData.username, user.id);
         if (usernameIsTaken) {
             addToast('Username is already taken. Please choose another.', 'error');
@@ -140,22 +176,62 @@ export function PublicProfilePage() {
             return;
         }
 
+        // 2. Role computation
+        let role = 'fan';
+        if (isArtistChecked && isBusinessChecked) role = 'artist'; // Artist with business capabilities
+        else if (isArtistChecked) role = 'artist';
+        else if (isBusinessChecked) role = 'business';
+
+        // 3. Role-based validation
+        if (role === 'artist' && !formData.talentCategory) {
+            addToast('Please select a talent category for an artist profile.', 'error');
+            setIsSaving(false);
+            return;
+        }
+
+        // 4. Sanitize all URLs
+        const sanitizedSocialLinks = Object.entries(parsedSocialLinks).reduce((acc, [key, value]) => {
+            acc[key] = sanitizeUrl(value as string) || '';
+            return acc;
+        }, {} as Record<string, string>);
+
+        const sanitizedExtraLinks = parsedExtraLinks
+            .map(link => ({
+                label: link.label,
+                url: sanitizeUrl(link.url) || ''
+            }))
+            .filter(link => link.url); // Filter out links that became empty after sanitization
+
         try {
-            const updatedData = { 
+            const updatedData: any = { 
                 ...formData, 
-                bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl), 
-                profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl),
+                username: formData.username,
+                bio: formData.bio || '',
+                skills: formData.skills || '',
+                tags: formData.tags || '',
+                location: formData.location || '',
+                bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl) || '', 
+                profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl) || '',
+                socialLinks: JSON.stringify(sanitizedSocialLinks),
+                extraLinks: JSON.stringify(sanitizedExtraLinks),
+                role: role,
+                talentCategory: role === 'artist' ? formData.talentCategory : '',
+                talentSubcategories: role === 'artist' ? formData.talentSubcategories : [],
                 updatedAt: serverTimestamp()
             };
-            delete updatedData.id; 
+            // Prevent overwriting immutable or server-set fields
+            delete updatedData.id;
+            delete updatedData.createdAt; 
             
             await updateDoc(doc(db, 'users', user.id), updatedData);
             
             setEditing(false);
             addToast('Profile updated successfully!', 'success');
 
+            // 5. Handle username change redirect
             if(formData.username !== username) {
-                router.push(`/u/${formData.username}`);
+                // Important: Use replace to not break the back button, and let useEffect handle reload
+                router.replace(`/u/${formData.username}`);
             } else {
                 // Manually update the local user state to reflect changes immediately
                 setUser((prevUser: any) => ({ ...prevUser, ...updatedData }));
@@ -185,6 +261,22 @@ export function PublicProfilePage() {
             router.push('/');
         });
     };
+
+    const cancelEditing = () => {
+        setEditing(false);
+        // Reset form data to the original user state
+        const originalFormData = {
+            ...user,
+            socialLinks: user.socialLinks || JSON.stringify({}),
+            extraLinks: user.extraLinks || JSON.stringify([]),
+            talentSubcategories: Array.isArray(user.talentSubcategories) ? user.talentSubcategories : [],
+            skills: user.skills || '',
+            tags: user.tags || '',
+        };
+        setFormData(originalFormData);
+        setIsArtistChecked(user.role === 'artist');
+        setIsBusinessChecked(user.role === 'business');
+    };
     
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center"><p>Loading profile...</p></div>;
@@ -202,7 +294,7 @@ export function PublicProfilePage() {
                 const Icon = socialIcons[key];
                 return <a key={key} href={url as string} target="_blank" rel="noopener noreferrer" className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/20 transition-colors"><Icon className="w-5 h-5" /></a>;
             })}
-            {extraLinks.map((link:any, idx:number) => (
+            {extraLinks.filter((link:any) => link.url).map((link:any, idx:number) => (
                 <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs border border-transparent hover:text-foreground hover:bg-primary/20 transition-all">
                     {link.label || link.url}
                 </a>
@@ -299,7 +391,7 @@ export function PublicProfilePage() {
                     )}
                      {isOwnProfile && editing && (
                         <div className="absolute top-4 right-4 flex gap-2">
-                            <Button onClick={() => setEditing(false)} variant="secondary" size="sm">Cancel</Button>
+                            <Button onClick={cancelEditing} variant="secondary" size="sm">Cancel</Button>
                             <Button onClick={handleSave} size="sm" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</Button>
                         </div>
                     )}
@@ -320,6 +412,30 @@ export function PublicProfilePage() {
                     <div className="mt-10 sm:mt-16">
                         {editing ? (
                           <div className="space-y-4">
+                            <div className="mb-6 space-y-3">
+                                <Label>Account Type *</Label>
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
+                                        <Checkbox checked={isArtistChecked} onCheckedChange={(checked) => setIsArtistChecked(Boolean(checked))} id="artist-check" />
+                                        <div>
+                                            <Label htmlFor="artist-check" className="font-semibold text-foreground cursor-pointer">Artist / Talent</Label>
+                                            <p className="text-xs text-muted-foreground">Showcase your talent and get discovered</p>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
+                                        <Checkbox checked={isBusinessChecked} onCheckedChange={(checked) => setIsBusinessChecked(Boolean(checked))} id="business-check" />
+                                        <div>
+                                            <Label htmlFor="business-check" className="font-semibold text-foreground cursor-pointer">Business / Producer</Label>
+                                            <p className="text-xs text-muted-foreground">Discover and hire talent</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                {isArtistChecked && isBusinessChecked && (
+                                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mt-2">
+                                        <p className="text-xs text-primary">✓ You selected both roles. Your account will be set as <strong>Artist</strong> with business capabilities.</p>
+                                    </div>
+                                )}
+                            </div>
                             <div>
                                 <Label htmlFor="username-edit">Username</Label>
                                 <Input id="username-edit" value={formData.username || ''} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" />
@@ -365,7 +481,7 @@ export function PublicProfilePage() {
                         )}
                     </div>
                     
-                    {editing && user.role === 'artist' ? renderEditArtistFields() : null}
+                    {editing && isArtistChecked ? renderEditArtistFields() : null}
                     {!editing && (Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && <div className="mt-6">{renderSocialLinks()}</div>}
 
                 </CardContent>
@@ -426,6 +542,8 @@ export function PublicProfilePage() {
         </div>
     );
 }
+
+    
 
     
 
