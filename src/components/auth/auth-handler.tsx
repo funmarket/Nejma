@@ -21,8 +21,8 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const ensureUserProfile = async () => {
-      if (connecting || showSplash ) {
-        setIsEnsuringProfile(connecting);
+      if (connecting) {
+        setIsEnsuringProfile(true);
         return;
       }
       
@@ -60,7 +60,7 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
       }
     };
     ensureUserProfile();
-  }, [publicKey, devbaseClient, connecting, connected, showSplash]);
+  }, [publicKey, devbaseClient, connecting, connected]);
 
   if (showSplash) {
     return <SplashScreen />;
