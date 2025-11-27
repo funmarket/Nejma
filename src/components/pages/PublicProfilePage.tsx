@@ -1,5 +1,4 @@
 
-      
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -41,6 +40,18 @@ async function getVideosForArtist(userId: string) {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+async function isUsernameTaken(username: string, currentUserId: string | null): Promise<boolean> {
+    if (!username) return false;
+    const q = query(collection(db, 'users'), where('username', '==', username));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return false;
+    // If we are checking for an existing user, make sure the found user isn't themselves
+    if (currentUserId && snapshot.docs[0].id === currentUserId) {
+        return false;
+    }
+    return true;
+}
+
 
 export function PublicProfilePage() {
     const params = useParams();
@@ -57,6 +68,7 @@ export function PublicProfilePage() {
     const [formData, setFormData] = useState<any>({});
     const [showExtraLinks, setShowExtraLinks] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const isOwnProfile = currentUser && user && currentUser.walletAddress === user.walletAddress;
 
@@ -69,7 +81,9 @@ export function PublicProfilePage() {
                 ...userData,
                 socialLinks: userData.socialLinks || JSON.stringify({}),
                 extraLinks: userData.extraLinks || JSON.stringify([]),
-                talentSubcategories: userData.talentSubcategories || JSON.stringify([]),
+                talentSubcategories: Array.isArray(userData.talentSubcategories) ? userData.talentSubcategories : [],
+                skills: userData.skills || '',
+                tags: userData.tags || '',
             });
             const userVideos = await getVideosForArtist(userData.userId || userData.id);
             setVideos(userVideos);
@@ -117,6 +131,14 @@ export function PublicProfilePage() {
     const handleSave = async () => {
         if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
         
+        setIsSaving(true);
+        const usernameIsTaken = await isUsernameTaken(formData.username, user.id);
+        if (usernameIsTaken) {
+            addToast('Username is already taken. Please choose another.', 'error');
+            setIsSaving(false);
+            return;
+        }
+
         try {
             const updatedData = { 
                 ...formData, 
@@ -127,15 +149,20 @@ export function PublicProfilePage() {
             delete updatedData.id; 
             
             await updateDoc(doc(db, 'users', user.id), updatedData);
-            setUser({ ...user, ...updatedData });
+            
             setEditing(false);
             addToast('Profile updated successfully!', 'success');
+
             if(formData.username !== username) {
                 router.push(`/u/${formData.username}`);
+            } else {
+                setUser({ ...user, ...updatedData });
             }
         } catch (error) {
             console.error(error);
             addToast('Failed to update profile', 'error');
+        } finally {
+            setIsSaving(false);
         }
     };
     
@@ -187,7 +214,7 @@ export function PublicProfilePage() {
                     <Label>Talent Category *</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
                         {Object.entries(TALENT_CATEGORIES).map(([key, cat]) => (
-                            <Button key={key} type="button" onClick={() => setFormData({...formData, talentCategory: key, talentSubcategories: JSON.stringify([])})} variant={formData.talentCategory === key ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
+                            <Button key={key} type="button" onClick={() => setFormData({...formData, talentCategory: key, talentSubcategories: []})} variant={formData.talentCategory === key ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
                                 {cat.label}
                             </Button>
                         ))}
@@ -198,12 +225,11 @@ export function PublicProfilePage() {
                         <Label>Subcategories (Select one or more)</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                         {TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories.map(sub => {
-                            const currentSubs = JSON.parse(formData.talentSubcategories || '[]');
-                            const isSelected = currentSubs.includes(sub.value);
+                            const isSelected = formData.talentSubcategories.includes(sub.value);
                             return (
                                 <Button key={sub.value} type="button" onClick={() => {
-                                    const newSubs = isSelected ? currentSubs.filter((s:string) => s !== sub.value) : [...currentSubs, sub.value];
-                                    setFormData({...formData, talentSubcategories: JSON.stringify(newSubs)});
+                                    const newSubs = isSelected ? formData.talentSubcategories.filter((s:string) => s !== sub.value) : [...formData.talentSubcategories, sub.value];
+                                    setFormData({...formData, talentSubcategories: newSubs});
                                 }} variant={isSelected ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
                                     {sub.label}
                                 </Button>
@@ -271,7 +297,7 @@ export function PublicProfilePage() {
                      {isOwnProfile && editing && (
                         <div className="absolute top-4 right-4 flex gap-2">
                             <Button onClick={() => setEditing(false)} variant="secondary" size="sm">Cancel</Button>
-                            <Button onClick={handleSave} size="sm">Save</Button>
+                            <Button onClick={handleSave} size="sm" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</Button>
                         </div>
                     )}
                 </div>
@@ -298,6 +324,14 @@ export function PublicProfilePage() {
                             <div>
                                 <Label htmlFor="bio-edit">Bio</Label>
                                 <Textarea id="bio-edit" value={formData.bio || ''} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
+                            </div>
+                            <div>
+                                <Label htmlFor="skills-edit">Skills</Label>
+                                <Input id="skills-edit" value={formData.skills || ''} onChange={e=>setFormData({...formData, skills: e.target.value})} placeholder="e.g., Vocals, Guitar, Songwriting"/>
+                            </div>
+                             <div>
+                                <Label htmlFor="tags-edit">Tags</Label>
+                                <Input id="tags-edit" value={formData.tags || ''} onChange={e=>setFormData({...formData, tags: e.target.value})} placeholder="e.g., pop, indie, lofi (comma-separated)"/>
                             </div>
                              <div>
                                 <Label htmlFor="location-edit">Location</Label>
@@ -384,5 +418,4 @@ export function PublicProfilePage() {
     );
 }
 
-      
     

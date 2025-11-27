@@ -1,5 +1,4 @@
 
-      
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -17,7 +16,6 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import Image from 'next/image';
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/hooks/use-user';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 const socialIcons: Record<string, React.ElementType> = {
@@ -30,9 +28,20 @@ const socialIcons: Record<string, React.ElementType> = {
     website: Globe
 };
 
+async function isUsernameTaken(username: string, currentUserId: string | null): Promise<boolean> {
+    if (!username) return false;
+    const q = query(collection(db, 'users'), where('username', '==', username));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return false;
+    // If we are checking for an existing user, make sure the found user isn't themselves
+    if (currentUserId && snapshot.docs[0].id === currentUserId) {
+        return false;
+    }
+    return true;
+}
+
 export function OnboardProfilePage() {
-    const { user, loading: loadingUser } = useUser();
-    const { publicKey } = useWallet();
+    const { publicKey, connected } = useWallet();
     const router = useRouter();
     const params = useParams();
     const { addToast } = useToast();
@@ -42,19 +51,53 @@ export function OnboardProfilePage() {
     const [step, setStep] = useState(1);
     const [isArtistChecked, setIsArtistChecked] = useState(false);
     const [isBusinessChecked, setIsBusinessChecked] = useState(false);
+    const [existingUserId, setExistingUserId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         username: '',
         bio: '',
         profilePhotoUrl: '',
         bannerPhotoUrl: '',
         location: '',
+        skills: '',
+        tags: '',
         socialLinks: JSON.stringify({}),
         extraLinks: JSON.stringify([]),
         talentCategory: '',
-        talentSubcategories: JSON.stringify([]),
+        talentSubcategories: [] as string[],
     });
     const [showExtraLinks, setShowExtraLinks] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // Pre-populate form if user exists
+    useEffect(() => {
+        const fetchAndSetUserData = async () => {
+            if (publicKey) {
+                const q = query(collection(db, 'users'), where('walletAddress', '==', publicKey.toBase58()));
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const existingUser = snapshot.docs[0].data();
+                    const userId = snapshot.docs[0].id;
+                    setExistingUserId(userId);
+                    setFormData({
+                        username: existingUser.username || '',
+                        bio: existingUser.bio || '',
+                        profilePhotoUrl: existingUser.profilePhotoUrl || '',
+                        bannerPhotoUrl: existingUser.bannerPhotoUrl || '',
+                        location: existingUser.location || '',
+                        skills: existingUser.skills || '',
+                        tags: existingUser.tags || '',
+                        socialLinks: existingUser.socialLinks || JSON.stringify({}),
+                        extraLinks: existingUser.extraLinks || JSON.stringify([]),
+                        talentCategory: existingUser.talentCategory || '',
+                        talentSubcategories: Array.isArray(existingUser.talentSubcategories) ? existingUser.talentSubcategories : [],
+                    });
+                    if (existingUser.role === 'artist') setIsArtistChecked(true);
+                    if (existingUser.role === 'business') setIsBusinessChecked(true);
+                }
+            }
+        };
+        fetchAndSetUserData();
+    }, [publicKey]);
 
     useEffect(() => {
         if (type === 'artist') setIsArtistChecked(true);
@@ -91,6 +134,12 @@ export function OnboardProfilePage() {
         const newLinks = parsedExtraLinks.filter((_: any, i: number) => i !== index);
         setFormData(prev => ({ ...prev, extraLinks: JSON.stringify(newLinks) }));
     };
+    
+    useEffect(() => {
+        if (!connected) {
+            addToast("Wallet disconnected", "error");
+        }
+    }, [connected, addToast]);
 
     const handleCreateProfile = async () => {
         if (!publicKey) {
@@ -99,6 +148,14 @@ export function OnboardProfilePage() {
         }
         if (!formData.username) { addToast('Username is required.', 'error'); return; }
 
+        setIsSaving(true);
+        const usernameIsTaken = await isUsernameTaken(formData.username, existingUserId);
+        if (usernameIsTaken) {
+            addToast('Username is already taken. Please choose another.', 'error');
+            setIsSaving(false);
+            return;
+        }
+
         let role = 'fan';
         if (isArtistChecked && isBusinessChecked) role = 'artist';
         else if (isArtistChecked) role = 'artist';
@@ -106,42 +163,41 @@ export function OnboardProfilePage() {
 
         if (role === 'artist' && !formData.talentCategory) {
             addToast('Please select your talent category.', 'error');
+            setIsSaving(false);
             return;
         }
         
-        setIsSaving(true);
         try {
             const profileData: any = {
                 walletAddress: publicKey.toBase58(),
                 username: formData.username || '',
                 bio: formData.bio || '',
                 location: formData.location || '',
+                skills: formData.skills || '',
+                tags: formData.tags || '',
                 profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl) || '',
                 bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl) || '',
                 socialLinks: formData.socialLinks,
                 extraLinks: formData.extraLinks,
                 role,
                 talentCategory: role === 'artist' ? formData.talentCategory : null,
-                talentSubcategories: role === 'artist' ? formData.talentSubcategories : JSON.stringify([]),
+                talentSubcategories: role === 'artist' ? formData.talentSubcategories : [],
                 rankingScore: 0,
                 escrowBalance: 0,
                 updatedAt: serverTimestamp()
             };
 
-            const usersCollection = collection(db, 'users');
-            const q = query(usersCollection, where('walletAddress', '==', publicKey.toBase58()));
-            const existingUsers = await getDocs(q);
-
-            if (existingUsers.empty) {
-                profileData.createdAt = serverTimestamp();
-                const newUserRef = await addDoc(usersCollection, profileData);
-                await updateDoc(doc(db, 'users', newUserRef.id), { userId: newUserRef.id });
+            if (existingUserId) {
+                // Update existing user
+                await updateDoc(doc(db, 'users', existingUserId), profileData);
             } else {
-                const userDocRef = existingUsers.docs[0].ref;
-                await updateDoc(userDocRef, profileData);
+                // Create new user
+                profileData.createdAt = serverTimestamp();
+                const newUserRef = await addDoc(collection(db, 'users'), profileData);
+                await updateDoc(newUserRef, { userId: newUserRef.id });
             }
             
-            addToast('Profile created successfully!', 'success');
+            addToast('Profile saved successfully!', 'success');
             if (role === 'artist') {
                 setStep(2);
             } else {
@@ -150,41 +206,13 @@ export function OnboardProfilePage() {
 
         } catch (error) {
             console.error('Error creating profile:', error);
-            addToast('Failed to create profile.', 'error');
+            addToast('Failed to save profile.', 'error');
         } finally {
             setIsSaving(false);
         }
     };
     
-    if (loadingUser) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>
     if (!publicKey) return <WalletConnectPrompt accountType={type || 'fan'} onBack={() => router.push('/onboarding')} />;
-
-    const renderAccountTypeSelection = () => (
-        <div className="mb-6 space-y-3">
-            <Label>Account Type *</Label>
-            <div className="space-y-2">
-                <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
-                    <Checkbox checked={isArtistChecked} onCheckedChange={(checked) => setIsArtistChecked(Boolean(checked))} id="artist-check" />
-                    <div>
-                        <Label htmlFor="artist-check" className="font-semibold text-foreground cursor-pointer">Artist / Talent</Label>
-                        <p className="text-xs text-muted-foreground">Showcase your talent and get discovered</p>
-                    </div>
-                </label>
-                <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
-                    <Checkbox checked={isBusinessChecked} onCheckedChange={(checked) => setIsBusinessChecked(Boolean(checked))} id="business-check" />
-                    <div>
-                        <Label htmlFor="business-check" className="font-semibold text-foreground cursor-pointer">Business / Producer</Label>
-                        <p className="text-xs text-muted-foreground">Discover and hire talent</p>
-                    </div>
-                </label>
-            </div>
-            {isArtistChecked && isBusinessChecked && (
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mt-2">
-                    <p className="text-xs text-primary">✓ You selected both roles. Your account will be set as <strong>Artist</strong> with business capabilities.</p>
-                </div>
-            )}
-        </div>
-    );
 
     const renderArtistFields = () => (
         <>
@@ -193,7 +221,7 @@ export function OnboardProfilePage() {
                     <Label>Talent Category *</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
                         {Object.entries(TALENT_CATEGORIES).map(([key, cat]) => (
-                            <Button key={key} type="button" onClick={() => setFormData({...formData, talentCategory: key, talentSubcategories: JSON.stringify([])})} variant={formData.talentCategory === key ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
+                            <Button key={key} type="button" onClick={() => setFormData({...formData, talentCategory: key, talentSubcategories: []})} variant={formData.talentCategory === key ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
                                 {cat.label}
                             </Button>
                         ))}
@@ -204,12 +232,11 @@ export function OnboardProfilePage() {
                         <Label>Subcategories (Select one or more)</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                         {(TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories || []).map(sub => {
-                            const currentSubs = JSON.parse(formData.talentSubcategories || '[]');
-                            const isSelected = currentSubs.includes(sub.value);
+                            const isSelected = formData.talentSubcategories.includes(sub.value);
                             return (
                                 <Button key={sub.value} type="button" onClick={() => {
-                                    const newSubs = isSelected ? currentSubs.filter((s:string) => s !== sub.value) : [...currentSubs, sub.value];
-                                    setFormData({...formData, talentSubcategories: JSON.stringify(newSubs)});
+                                    const newSubs = isSelected ? formData.talentSubcategories.filter((s:string) => s !== sub.value) : [...formData.talentSubcategories, sub.value];
+                                    setFormData({...formData, talentSubcategories: newSubs});
                                 }} variant={isSelected ? 'default' : 'secondary'} className="h-auto py-2 text-xs sm:text-sm whitespace-normal">
                                     {sub.label}
                                 </Button>
@@ -272,13 +299,44 @@ export function OnboardProfilePage() {
                 <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border">
                     {step === 1 ? (
                         <form onSubmit={(e) => { e.preventDefault(); handleCreateProfile(); }} className="space-y-6">
-                            {type !== 'fan' && renderAccountTypeSelection()}
+                            {type !== 'fan' && (
+                                <div className="mb-6 space-y-3">
+                                <Label>Account Type *</Label>
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
+                                        <Checkbox checked={isArtistChecked} onCheckedChange={(checked) => setIsArtistChecked(Boolean(checked))} id="artist-check" />
+                                        <div>
+                                            <Label htmlFor="artist-check" className="font-semibold text-foreground cursor-pointer">Artist / Talent</Label>
+                                            <p className="text-xs text-muted-foreground">Showcase your talent and get discovered</p>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-3 bg-muted/50 rounded-lg p-4 cursor-pointer hover:bg-muted transition-colors">
+                                        <Checkbox checked={isBusinessChecked} onCheckedChange={(checked) => setIsBusinessChecked(Boolean(checked))} id="business-check" />
+                                        <div>
+                                            <Label htmlFor="business-check" className="font-semibold text-foreground cursor-pointer">Business / Producer</Label>
+                                            <p className="text-xs text-muted-foreground">Discover and hire talent</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                {isArtistChecked && isBusinessChecked && (
+                                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mt-2">
+                                        <p className="text-xs text-primary">✓ You selected both roles. Your account will be set as <strong>Artist</strong> with business capabilities.</p>
+                                    </div>
+                                )}
+                            </div>
+                            )}
                             <div className="space-y-4">
                                 <Label htmlFor="username">Username *</Label>
                                 <Input id="username" value={formData.username || ''} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder={type === 'artist' ? 'Your stage name' : 'Your username'} />
                             
                                 <Label htmlFor="bio">Bio</Label>
                                 <Textarea id="bio" value={formData.bio || ''} onChange={e => setFormData({ ...formData, bio: e.target.value })} rows={4} placeholder="Tell us about yourself..." />
+
+                                <Label htmlFor="skills">Skills</Label>
+                                <Input id="skills" value={formData.skills || ''} onChange={e => setFormData({ ...formData, skills: e.target.value })} placeholder="e.g., Vocals, Guitar, Songwriting" />
+
+                                <Label htmlFor="tags">Tags</Label>
+                                <Input id="tags" value={formData.tags || ''} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g., pop, indie, lofi (comma-separated)" />
                                 
                                 <Label htmlFor="location">Location</Label>
                                 <Input id="location" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="City, Country" />
@@ -296,7 +354,7 @@ export function OnboardProfilePage() {
                             
                             <div className="flex gap-3 pt-4">
                                 <Button onClick={() => router.push('/onboarding')} variant="outline" className="flex-1" type="button">Back</Button>
-                                <Button type="submit" disabled={isSaving} className="flex-1">{isSaving ? "Saving..." : "Continue"}</Button>
+                                <Button type="submit" disabled={isSaving || !connected} className="flex-1">{isSaving ? "Saving..." : "Continue"}</Button>
                             </div>
                         </form>
                     ) : (
@@ -315,4 +373,6 @@ export function OnboardProfilePage() {
     );
 }
       
+    
+
     
