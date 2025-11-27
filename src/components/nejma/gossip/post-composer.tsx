@@ -7,10 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 export function PostComposer({ onPostCreated }: { onPostCreated: () => void }) {
-  const { user } = useAuth();
+  const { user } = useUser();
   const api = useGossipApi();
   const { addToast } = useToast();
 

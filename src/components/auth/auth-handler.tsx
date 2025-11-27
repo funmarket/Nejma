@@ -14,37 +14,29 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useUser } from "@/hooks/use-user";
 
 export function AuthHandler({ children }: { children: React.ReactNode }) {
   const { publicKey, connected, connecting } = useWallet();
+  const { user, loading: userLoading } = useUser();
 
-  const [isEnsuringProfile, setIsEnsuringProfile] = useState(true);
+  const [isEnsuringProfile, setIsEnsuringProfile] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [walletReady, setWalletReady] = useState(false);
 
-  // ---------- 1. SPLASH ----------
+  // 1. Splash Screen Timer
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // ---------- 2. WAIT FOR WALLET TO FINISH INITIALIZING ----------
-  useEffect(() => {
-    // Wallet adapter can briefly report connected:false while initializing
-    if (!connecting && publicKey) {
-      setWalletReady(true);
-    } else if (!connecting && !publicKey) {
-      setWalletReady(false); // not connected, but ready
-      setIsEnsuringProfile(false);
-    }
-  }, [connecting, publicKey]);
-
-  // ---------- 3. CREATE / LOAD FIRESTORE PROFILE ----------
+  // 2. Profile Creation/Verification Logic
   const ensureUserProfile = useCallback(async () => {
-    if (!walletReady || !publicKey) return;
-
+    if (connecting || !connected || !publicKey || userLoading || user) {
+      return;
+    }
+    
     setIsEnsuringProfile(true);
-
+    
     try {
       const wallet = publicKey.toBase58();
       const usersRef = collection(db, "users");
@@ -53,10 +45,8 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
 
       if (snap.empty) {
         console.log(`Creating Firestore user for wallet ${wallet}`);
-
         const username = "user" + wallet.slice(0, 6);
-
-        const newUser = await addDoc(usersRef, {
+        const newUserDoc = await addDoc(usersRef, {
           walletAddress: wallet,
           username,
           bio: "",
@@ -64,17 +54,11 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-
-        await updateDoc(doc(db, "users", newUser.id), {
-          userId: newUser.id,
-        });
+        await updateDoc(newUserDoc, { userId: newUserDoc.id });
       } else {
-        // Ensure legacy users have userId
-        const docSnap = snap.docs[0];
-        const data = docSnap.data();
-
-        if (!data.userId || data.userId !== docSnap.id) {
-          await updateDoc(docSnap.ref, { userId: docSnap.id });
+        const userDoc = snap.docs[0];
+        if (!userDoc.data().userId) {
+          await updateDoc(userDoc.ref, { userId: userDoc.id });
         }
       }
     } catch (err) {
@@ -82,23 +66,19 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
     } finally {
       setIsEnsuringProfile(false);
     }
-  }, [walletReady, publicKey]);
+  }, [connecting, connected, publicKey, user, userLoading]);
 
-  // ---------- 4. RUN PROFILE CHECK WHEN READY ----------
+  // 3. Trigger Profile Check
   useEffect(() => {
-    if (walletReady && connected) {
-      ensureUserProfile();
-    }
-  }, [walletReady, connected, ensureUserProfile]);
-
-  // ---------- 5. LOADING STATES ----------
+    ensureUserProfile();
+  }, [ensureUserProfile]);
+  
+  // 4. Determine Loading State
   if (showSplash) {
     return <SplashScreen />;
   }
 
-  const showLoading =
-    connecting ||
-    (walletReady && connected && isEnsuringProfile);
+  const showLoading = connecting || (!user && connected && (userLoading || isEnsuringProfile));
 
   if (showLoading) {
     return (
@@ -116,9 +96,7 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
         <div className="text-center">
           <div className="animate-spin h-16 w-16 border-t-2 border-b-2 border-primary mx-auto mb-4 rounded-full"></div>
           <p className="text-foreground">
-            {connecting
-              ? "Connecting to wallet..."
-              : "Verifying profile..."}
+            {connecting ? "Connecting to wallet..." : "Verifying profile..."}
           </p>
         </div>
       </div>

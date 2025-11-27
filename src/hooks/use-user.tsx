@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { collection, query, where, onSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { AuthContext } from '@/components/providers/auth-provider';
 
 export function useUser() {
-    const { publicKey } = useWallet();
+    const { publicKey, connected } = useWallet();
     const [user, setUser] = useState<DocumentData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!publicKey) {
+        if (!connected || !publicKey) {
             setUser(null);
             setLoading(false);
             return;
@@ -36,15 +35,7 @@ export function useUser() {
         });
 
         return () => unsubscribe();
-    }, [publicKey]);
+    }, [publicKey, connected]);
 
     return { user, loading };
-}
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
 }

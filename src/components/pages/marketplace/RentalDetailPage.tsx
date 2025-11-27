@@ -11,11 +11,11 @@ import Link from 'next/link';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 export function RentalDetailPage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 

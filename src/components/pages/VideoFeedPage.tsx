@@ -9,7 +9,7 @@ import { Sparkles } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDocs, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 function SkeletonLoader() {
   return (
@@ -22,7 +22,7 @@ function SkeletonLoader() {
 }
 
 export function VideoFeedPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const searchParams = useSearchParams();
   const activeFeedTab = searchParams.get('category') || 'music';
 

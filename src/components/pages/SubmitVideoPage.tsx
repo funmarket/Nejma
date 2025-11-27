@@ -12,10 +12,10 @@ import { Label } from '@/components/ui/label';
 import { VideoSummarizer } from '@/components/nejma/video-summarizer';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 export function SubmitVideoPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 

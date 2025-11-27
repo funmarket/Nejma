@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch, addDoc, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 export function useGossipApi() {
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const createPost = useCallback(async (postData: any) => {
     if (!user) throw new Error("User not authenticated");
@@ -113,7 +113,7 @@ export function useGossipApi() {
 
 export function useGossipFeed() {
   const api = useGossipApi();
-  const { user } = useAuth();
+  const { user } = useUser();
   const [posts, setPosts] = useState<any[]>([]);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

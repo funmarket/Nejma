@@ -8,10 +8,10 @@ import { PostComments } from './post-comments';
 import { ServiceAdCard } from './service-ad-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 export function GossipFeed() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const { posts, ads, loading, refreshFeed, comments, ratings, userPostRatings, expandedComments, toggleComments, submitComment, ratePost, userFollows, toggleFollow, feedFilter, setFeedFilter, handleDeleteComment } = useGossipFeed();
 
   if (loading) {

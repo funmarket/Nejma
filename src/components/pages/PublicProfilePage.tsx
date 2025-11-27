@@ -17,7 +17,7 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-user';
+import { useUser } from '@/hooks/use-user';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
@@ -44,7 +44,7 @@ async function getVideosForArtist(userId: string) {
 export function PublicProfilePage() {
     const params = useParams();
     const username = params.username as string;
-    const { user: currentUser } = useAuth();
+    const { user: currentUser } = useUser();
     const router = useRouter();
     const { addToast } = useToast();
 
