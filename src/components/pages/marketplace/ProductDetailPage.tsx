@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,10 +11,11 @@ import Link from 'next/link';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function ProductDetailPage() {
   const { id } = useParams();
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -54,14 +54,13 @@ export function ProductDetailPage() {
   const handleBuy = async (currency: string) => {
     if (!user) { addToast('Please connect wallet to buy', 'error'); return; }
     addToast('Order created! Funds held in escrow until delivery.', 'success');
-    // Actual buy logic would go here, e.g., calling a serverless function
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center"><p>Product not found</p></div>;
 
   const images = product.images ? JSON.parse(product.images) : [];
-  const isOwner = user?.uid === product.sellerWallet;
+  const isOwner = user?.walletAddress === product.sellerWallet;
 
   return (
     <div className="min-h-screen pt-6 pb-20">

@@ -4,7 +4,6 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
@@ -44,7 +44,7 @@ async function getVideosForArtist(userId: string) {
 export function PublicProfilePage() {
     const params = useParams();
     const username = params.username as string;
-    const { user: currentUser } = useDevapp();
+    const { user: currentUser } = useUser();
     const router = useRouter();
     const { addToast } = useToast();
 
@@ -56,7 +56,7 @@ export function PublicProfilePage() {
     const [showExtraLinks, setShowExtraLinks] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    const isOwnProfile = currentUser && user && currentUser.uid === user.walletAddress;
+    const isOwnProfile = currentUser && user && currentUser.walletAddress === user.walletAddress;
 
     const loadProfile = async () => {
         setLoading(true);
@@ -117,7 +117,7 @@ export function PublicProfilePage() {
                 profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl),
                 updatedAt: serverTimestamp()
             };
-            delete updatedData.id; // Don't save id field back to document
+            delete updatedData.id; 
             
             await updateDoc(doc(db, 'users', user.id), updatedData);
             setUser({ ...user, ...updatedData });
@@ -289,7 +289,7 @@ export function PublicProfilePage() {
                             </>
                         ) : (
                             <>
-                               <p className="text-muted-foreground whitespace-pre-wrap">{user.bio}</p>
+                               <p className="text-muted-foreground whitespace-pre-wrap">{user.bio || ''}</p>
                                {user.location && <p className="text-sm text-muted-foreground mt-2">{user.location}</p>}
                             </>
                         )}
@@ -330,7 +330,7 @@ export function PublicProfilePage() {
                      <Card className="bg-card p-6 border-destructive/50">
                         <h3 className="text-destructive font-bold mb-3">Danger Zone</h3>
                         <p className="text-muted-foreground text-sm mb-4">Deleting your profile is permanent and will remove all your data and videos.</p>
-                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete Profile</Button>
+                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete Profile</Button>Ori
                     </Card>
                 </div>
             )}

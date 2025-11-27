@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { StarRating } from './star-rating';
 import { MessageCircle, User } from 'lucide-react';
@@ -13,9 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFollowing, userRating, commentsCount }: any) {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -35,7 +35,7 @@ export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFo
 
   const handleFollow = () => {
     if (!user) { addToast('Please connect your wallet to follow users', 'error'); return; }
-    if (post.authorWallet === user.uid) return;
+    if (post.authorWallet === user.walletAddress) return;
     onFollow(post.authorWallet);
   };
 
@@ -63,7 +63,7 @@ export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFo
           </div>
           <span className="text-muted-foreground text-xs block mt-1">{postDate.toLocaleString()}</span>
         </div>
-        {user && post.authorWallet !== user.uid && (
+        {user && post.authorWallet !== user.walletAddress && (
             <Button onClick={handleFollow} onMouseEnter={() => setIsHoveringFollow(true)} onMouseLeave={() => setIsHoveringFollow(false)} size="sm" variant={isFollowing ? 'secondary' : 'outline'}>
                 {isFollowing ? (isHoveringFollow ? 'Unfollow' : 'Following') : 'Follow'}
             </Button>

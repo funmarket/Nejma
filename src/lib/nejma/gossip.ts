@@ -1,14 +1,9 @@
 
 "use client";
 import { useState, useEffect, useCallback } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-
-async function getDocuments(q: any) {
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-}
+import { useUser } from '@/hooks/use-user';
 
 async function getDocument(collectionName: string, id: string) {
     const docRef = doc(db, collectionName, id);
@@ -21,13 +16,13 @@ async function getDocument(collectionName: string, id: string) {
 }
 
 export function useGossipApi() {
-  const { user } = useDevapp();
+  const { user } = useUser();
 
   const createPost = useCallback(async (postData: any) => {
     if (!user) throw new Error("User not authenticated");
     return addDoc(collection(db, 'gossip_posts'), {
         ...postData,
-        authorWallet: user.uid,
+        authorWallet: user.walletAddress,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         commentsCount: 0,
@@ -44,7 +39,7 @@ export function useGossipApi() {
     batch.set(commentRef, {
         postId,
         content,
-        authorWallet: user.uid,
+        authorWallet: user.walletAddress,
         createdAt: serverTimestamp(),
     });
 
@@ -77,7 +72,7 @@ export function useGossipApi() {
   const ratePost = useCallback(async (postId: string, score: number) => {
     if (!user) throw new Error("User not authenticated");
 
-    const ratingsQuery = query(collection(db, 'gossip_ratings'), where('postId', '==', postId), where('raterWallet', '==', user.uid));
+    const ratingsQuery = query(collection(db, 'gossip_ratings'), where('postId', '==', postId), where('raterWallet', '==', user.walletAddress));
     const querySnapshot = await getDocs(ratingsQuery);
 
     const batch = writeBatch(db);
@@ -87,7 +82,7 @@ export function useGossipApi() {
         batch.update(ratingDocRef, { score });
     } else {
         const newRatingRef = doc(collection(db, 'gossip_ratings'));
-        batch.set(newRatingRef, { postId, score, raterWallet: user.uid, createdAt: serverTimestamp() });
+        batch.set(newRatingRef, { postId, score, raterWallet: user.walletAddress, createdAt: serverTimestamp() });
     }
 
     const postRef = doc(db, 'gossip_posts', postId);
@@ -95,7 +90,7 @@ export function useGossipApi() {
     const allRatingsSnapshot = await getDocs(allRatingsQuery);
     
     const allRatings = allRatingsSnapshot.docs.map(d => d.data());
-    const existingRating = allRatings.find(r => r.raterWallet === user.uid);
+    const existingRating = allRatings.find(r => r.raterWallet === user.walletAddress);
     
     let totalScore = allRatings.reduce((sum, r) => sum + r.score, 0);
     let ratingCount = allRatings.length;
@@ -116,7 +111,7 @@ export function useGossipApi() {
   
   const followUser = useCallback(async (followingId: string) => {
     if(!user) throw new Error("User not authenticated");
-    return addDoc(collection(db, 'gossip_user_follows'), { followerWallet: user.uid, followingId, createdAt: serverTimestamp() });
+    return addDoc(collection(db, 'gossip_user_follows'), { followerWallet: user.walletAddress, followingId, createdAt: serverTimestamp() });
   }, [user]);
   
   const unfollowUser = useCallback(async (followId: string) => {
@@ -128,7 +123,7 @@ export function useGossipApi() {
 
 export function useGossipFeed() {
   const api = useGossipApi();
-  const { user } = useDevapp();
+  const { user } = useUser();
   const [posts, setPosts] = useState<any[]>([]);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +163,7 @@ export function useGossipFeed() {
         setUserFollows({});
         return;
     }
-    const followsQuery = query(collection(db, 'gossip_user_follows'), where('followerWallet', '==', user.uid));
+    const followsQuery = query(collection(db, 'gossip_user_follows'), where('followerWallet', '==', user.walletAddress));
     const unsubscribeFollows = onSnapshot(followsQuery, (snapshot) => {
         const followsMap: Record<string, string> = {};
         snapshot.forEach(doc => {
@@ -197,7 +192,7 @@ export function useGossipFeed() {
               if (allRatingsMap[rating.postId]) {
                   allRatingsMap[rating.postId].push(rating);
               }
-              if (user && rating.raterWallet === user.uid) {
+              if (user && rating.raterWallet === user.walletAddress) {
                   userRatingsMap[rating.postId] = rating.score;
               }
           });
@@ -247,8 +242,7 @@ export function useGossipFeed() {
       toggleComments, 
       submitComment: api.createComment, 
       ratePost: api.ratePost,
-      userFollows, 
-      toggleFollow, 
+      userFollows, toggleFollow, 
       feedFilter, 
       setFeedFilter, 
       handleDeleteComment: api.deleteComment 

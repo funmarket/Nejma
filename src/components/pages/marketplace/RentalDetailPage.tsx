@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,10 +11,11 @@ import Link from 'next/link';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function RentalDetailPage() {
   const { id } = useParams();
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -59,7 +59,7 @@ export function RentalDetailPage() {
   if (!rental) return <div className="min-h-screen flex items-center justify-center"><p>Rental not found</p></div>;
 
   const images = rental.images ? JSON.parse(rental.images) : [];
-  const isOwner = user?.uid === rental.ownerId;
+  const isOwner = user?.walletAddress === rental.ownerId;
 
   return (
     <div className="min-h-screen pt-6 pb-20">

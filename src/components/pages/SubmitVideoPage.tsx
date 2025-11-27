@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { parseYouTubeUrl } from '@/lib/nejma/youtube';
 import { Input } from '@/components/ui/input';
@@ -13,16 +12,16 @@ import { Label } from '@/components/ui/label';
 import { VideoSummarizer } from '@/components/nejma/video-summarizer';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function SubmitVideoPage() {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 
   const [rawVideoInput, setRawVideoInput] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('music');
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,15 +29,6 @@ export function SubmitVideoPage() {
   useEffect(() => {
     if (!user) {
       router.push('/onboarding');
-    } else {
-      const loadUser = async () => {
-        const q = query(collection(db, 'users'), where('walletAddress', '==', user.uid));
-        const userSnapshot = await getDocs(q);
-        if (!userSnapshot.empty) {
-            setCurrentUser({ id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data()});
-        }
-      };
-      loadUser();
     }
   }, [user, router]);
 
@@ -60,8 +50,8 @@ export function SubmitVideoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
-    if (currentUser.role !== 'artist') {
+    if (!user) return;
+    if (user.role !== 'artist') {
       addToast('Only artists can upload videos. Please create an artist profile.', 'error');
       return;
     }
@@ -77,7 +67,7 @@ export function SubmitVideoPage() {
     setIsSubmitting(true);
     try {
       const newVideoRef = await addDoc(collection(db, 'videos'), {
-        artistId: currentUser.userId,
+        artistId: user.userId,
         rawVideoInput: rawVideoInput.trim(),
         description,
         category,
@@ -103,7 +93,7 @@ export function SubmitVideoPage() {
     }
   };
 
-  if (!user || !currentUser) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>

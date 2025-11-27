@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { MARKETPLACE_SUBCATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentsui/select';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function NewListingPage() {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
   
@@ -36,7 +36,7 @@ export function NewListingPage() {
     try {
       const imageUrls = formData.images.filter(img => img.trim() !== '');
       await addDoc(collection(db, 'marketplace_products'), {
-        sellerWallet: user.uid,
+        sellerWallet: user.walletAddress,
         title: formData.title,
         description: formData.description,
         category: formData.category,

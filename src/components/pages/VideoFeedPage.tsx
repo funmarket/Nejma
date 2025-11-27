@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VideoCard } from '@/components/nejma/video-card';
@@ -10,6 +9,7 @@ import { Sparkles } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDocs, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 function SkeletonLoader() {
   return (
@@ -22,7 +22,7 @@ function SkeletonLoader() {
 }
 
 export function VideoFeedPage() {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const searchParams = useSearchParams();
   const activeFeedTab = searchParams.get('category') || 'music';
 
@@ -65,7 +65,7 @@ export function VideoFeedPage() {
       videosData = videosData.filter(v => v && v.isBanned !== true && v.hiddenFromFeed !== true);
 
       if (activeFeedTab === 'rising') {
-        videosData.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0) || (b.createdAt || 0) - (a.createdAt || 0));
+        videosData.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0) || (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       } else {
         videosData.sort(() => Math.random() - 0.5);
       }
@@ -85,10 +85,10 @@ export function VideoFeedPage() {
   }, [activeFeedTab, loadArtistForVideo]);
 
   
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     if (!user) return;
     try {
-      const q = query(collection(db, 'bookmarks'), where('userId', '==', user.uid));
+      const q = query(collection(db, 'bookmarks'), where('userId', '==', user.walletAddress));
       const bookmarksSnapshot = await getDocs(q);
       const bookmarkMap = bookmarksSnapshot.docs.reduce((acc, bookmarkDoc) => {
         const data = bookmarkDoc.data();
@@ -99,7 +99,7 @@ export function VideoFeedPage() {
     } catch (error) {
       console.error('Error loading bookmarks:', error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -107,16 +107,14 @@ export function VideoFeedPage() {
     } else {
         setBookmarkedVideos({});
     }
-  }, [user]);
+  }, [user, loadBookmarks]);
 
   const recordView = async (videoId: string) => {
     if (!user || !videoId) return;
     try {
         const videoRef = doc(db, 'videos', videoId);
-        // We don't create view records to avoid excessive writes, just increment.
         await updateDoc(videoRef, { views: increment(1) });
     } catch (error) {
-      // This is a non-critical operation, so we just log the error.
       console.error('Error recording view:', error);
     }
   };
@@ -161,7 +159,7 @@ export function VideoFeedPage() {
     try {
       await addDoc(collection(db, interactionType), {
           artistId: video.artistId,
-          businessId: user.uid,
+          businessId: user.walletAddress,
           videoId: video.id,
           message: message || `New ${interactionType} request`,
           baseAmount: baseAmount,
@@ -195,7 +193,7 @@ export function VideoFeedPage() {
         });
         addToast('Removed from saved', 'success');
       } else {
-        const newBookmarkRef = await addDoc(collection(db, 'bookmarks'), { userId: user.uid, videoId: videoId, createdAt: serverTimestamp() });
+        const newBookmarkRef = await addDoc(collection(db, 'bookmarks'), { userId: user.walletAddress, videoId: videoId, createdAt: serverTimestamp() });
         setBookmarkedVideos(prev => ({...prev, [videoId]: newBookmarkRef.id }));
         addToast('Saved!', 'success');
       }
@@ -218,7 +216,7 @@ export function VideoFeedPage() {
 
     try {
       await addDoc(collection(db, 'tips'), {
-        fromWallet: user.uid,
+        fromWallet: user.walletAddress,
         toWallet: video.artistId,
         amount: tipAmount,
         videoId: video.id,

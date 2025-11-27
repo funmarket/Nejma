@@ -1,9 +1,9 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import { DevappProvider } from '@/components/providers/devapp-provider';
 import { ToastProvider } from '@/components/providers/toast-provider';
 import { AuthHandler } from '@/components/auth/auth-handler';
 import SolanaWalletProvider from '@/components/providers/solana-wallet-provider';
+import { AuthProvider } from '@/components/providers/auth-provider';
 
 export const metadata: Metadata = {
   title: 'Firebase NEJMA',
@@ -24,13 +24,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <SolanaWalletProvider>
-          <DevappProvider>
-              <ToastProvider>
-                <AuthHandler>
-                  {children}
-                </AuthHandler>
-              </ToastProvider>
-          </DevappProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <AuthHandler>
+                {children}
+              </AuthHandler>
+            </AuthProvider>
+          </ToastProvider>
         </SolanaWalletProvider>
       </body>
     </html>

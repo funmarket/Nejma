@@ -1,6 +1,5 @@
 "use client";
 import { useState } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { useGossipApi } from '@/lib/nejma/gossip';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
@@ -8,9 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { useUser } from '@/hooks/use-user';
 
 export function PostComposer({ onPostCreated }: { onPostCreated: () => void }) {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const api = useGossipApi();
   const { addToast } = useToast();
 

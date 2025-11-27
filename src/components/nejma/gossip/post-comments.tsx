@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { ADMIN_WALLET } from '@/lib/nejma/constants';
 import { User, Send, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -11,9 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
-export function PostComments({ postId, comments, onSubmitComment, onDeleteComment, currentUser }: any) {
-  const { user: authUser } = useDevapp();
+export function PostComments({ postId, comments, onSubmitComment, onDeleteComment }: any) {
+  const { user } = useUser();
   const router = useRouter();
   
   const [newComment, setNewComment] = useState('');
@@ -42,7 +42,7 @@ export function PostComments({ postId, comments, onSubmitComment, onDeleteCommen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser) {
+    if (!user) {
       setShowLoginPrompt(true);
       return;
     }
@@ -53,14 +53,14 @@ export function PostComments({ postId, comments, onSubmitComment, onDeleteCommen
     setIsSubmitting(false);
   };
   
-  const isCommentingDisabled = !authUser;
+  const isCommentingDisabled = !user;
 
   return (
     <div className="mt-4 rounded-lg p-3 bg-muted/30 border border-border">
       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
         {comments.map((comment: any) => {
           const author = commentAuthors[comment.authorWallet];
-          const canDelete = authUser && (authUser.uid === comment.authorWallet || authUser.uid === ADMIN_WALLET);
+          const canDelete = user && (user.walletAddress === comment.authorWallet || user.walletAddress === ADMIN_WALLET);
           return (
             <div key={comment.id} className="group flex items-start gap-2 text-sm">
               <div className="w-8 h-8 rounded-full flex-shrink-0 bg-primary/20 overflow-hidden">

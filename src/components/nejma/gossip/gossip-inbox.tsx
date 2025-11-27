@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { ADMIN_WALLET } from '@/lib/nejma/constants';
 import { MessageCircle, User, Send, X, ArrowLeft } from 'lucide-react';
@@ -13,9 +12,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, or } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function GossipInbox() {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -35,7 +35,7 @@ export function GossipInbox() {
 
     const q = query(
       collection(db, 'gossip_messages'), 
-      or(where('fromWallet', '==', user.uid), where('toWallet', '==', user.uid))
+      or(where('fromWallet', '==', user.walletAddress), where('toWallet', '==', user.walletAddress))
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -54,7 +54,7 @@ export function GossipInbox() {
     if (!user) return {};
     const groups: Record<string, any[]> = {};
     messages.forEach(msg => {
-      const otherWallet = msg.fromWallet === user.uid ? msg.toWallet : msg.fromWallet;
+      const otherWallet = msg.fromWallet === user.walletAddress ? msg.toWallet : msg.fromWallet;
       if (!groups[otherWallet]) groups[otherWallet] = [];
       groups[otherWallet].push(msg);
     });
@@ -111,7 +111,7 @@ export function GossipInbox() {
     setNewMessage('');
     try {
       await addDoc(collection(db, 'gossip_messages'), {
-        fromWallet: user.uid,
+        fromWallet: user.walletAddress,
         toWallet: selectedChat,
         content: tempMessage,
         createdAt: serverTimestamp(),
@@ -139,8 +139,8 @@ export function GossipInbox() {
             <Card className="p-4 mb-4 h-96 overflow-y-auto flex flex-col">
                 <div className="flex-grow space-y-4">
                 {(groupedMessages[selectedChat] || []).map(msg => (
-                    <div key={msg.id} className={`flex items-end gap-2 ${msg.fromWallet === user?.uid ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs px-4 py-2 rounded-2xl ${msg.fromWallet === user?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
+                    <div key={msg.id} className={`flex items-end gap-2 ${msg.fromWallet === user?.walletAddress ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-xs px-4 py-2 rounded-2xl ${msg.fromWallet === user?.walletAddress ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
                             <p className="text-sm">{msg.content}</p>
                         </div>
                     </div>

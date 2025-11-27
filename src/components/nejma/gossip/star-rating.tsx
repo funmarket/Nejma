@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/hooks/use-user';
 
 export function StarRating({ postId, onRate, ratings, initialRating = 0 }: any) {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const { addToast } = useToast();
   
   const [hoveredStar, setHoveredStar] = useState(0);

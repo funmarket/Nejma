@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { RENTAL_SUBCATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
@@ -13,9 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function NewRentalListingPage() {
-  const { user } = useDevapp();
+  const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export function NewRentalListingPage() {
     try {
       const imageUrls = formData.images.filter(img => img.trim() !== '');
       await addDoc(collection(db, 'rentals'), {
-        ownerId: user.uid,
+        ownerId: user.walletAddress,
         title: formData.title,
         description: formData.description,
         category: formData.category,

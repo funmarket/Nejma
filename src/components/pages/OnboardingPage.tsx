@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
 import { Button } from '@/components/ui/button';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 function ChoiceButton({ label, subLabel, gradient, onClick }: { label:string, subLabel:string, gradient:string, onClick:()=>void }) {
   return (
@@ -36,12 +36,12 @@ function ChoiceButton({ label, subLabel, gradient, onClick }: { label:string, su
 }
 
 export function OnboardingPage() {
-  const { user } = useDevapp();
+  const { connected } = useWallet();
   const router = useRouter();
   const [showWalletConnect, setShowWalletConnect] = useState<string | null>(null);
 
   const handleRoleClick = (role: string) => {
-    if (!user) {
+    if (!connected) {
       setShowWalletConnect(role);
       return;
     }

@@ -2,48 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function ProfilePage() {
-  const { user, loadingUser } = useDevapp();
+  const { user, loading } = useUser();
   const router = useRouter();
   const [status, setStatus] = useState("Loading profile...");
 
   useEffect(() => {
-    if (loadingUser) {
+    if (loading) {
       return;
     }
     if (!user) {
+      setStatus("Profile not found, redirecting to setup...");
       router.push('/onboarding');
       return;
     }
 
-    const loadUser = async () => {
-      if (!user) return;
-      try {
-        const usersCollection = collection(db, 'users');
-        const q = query(usersCollection, where('walletAddress', '==', user.uid));
-        const userSnapshot = await getDocs(q);
+    if (user.username) {
+        setStatus(`Redirecting to @${user.username}...`);
+        router.push(`/u/${user.username}`);
+    } else {
+        setStatus("Profile not complete, redirecting to setup...");
+        router.push('/create/fan');
+    }
 
-        if (userSnapshot.empty || !userSnapshot.docs[0].data().username) {
-          setStatus("Profile not found, redirecting to setup...");
-          router.push('/create/fan');
-        } else {
-          const userProfile = userSnapshot.docs[0].data();
-          setStatus(`Redirecting to @${userProfile.username}...`);
-          router.push(`/u/${userProfile.username}`);
-        }
-      } catch (error) {
-        console.error('Error loading user:', error);
-        setStatus("Error loading profile, redirecting...");
-        router.push('/onboarding');
-      }
-    };
-
-    loadUser();
-  }, [user, loadingUser, router]);
+  }, [user, loading, router]);
 
   return (
     <div className="min-h-screen bg-background pt-16 pb-20 flex items-center justify-center">

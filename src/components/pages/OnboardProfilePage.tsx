@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
@@ -17,6 +16,8 @@ import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown,
 import Image from 'next/image';
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube,
@@ -29,7 +30,8 @@ const socialIcons: Record<string, React.ElementType> = {
 };
 
 export function OnboardProfilePage() {
-    const { user, loadingUser } = useDevapp();
+    const { user, loading: loadingUser } = useUser();
+    const { publicKey } = useWallet();
     const router = useRouter();
     const params = useParams();
     const { addToast } = useToast();
@@ -92,7 +94,7 @@ export function OnboardProfilePage() {
     };
 
     const handleCreateProfile = async () => {
-        if (!user) return;
+        if (!publicKey) return;
         if (!formData.username) { addToast('Username is required.', 'error'); return; }
 
         let role = 'fan';
@@ -108,7 +110,7 @@ export function OnboardProfilePage() {
         setIsSaving(true);
         try {
             const profileData: any = {
-                walletAddress: user.uid,
+                walletAddress: publicKey.toBase58(),
                 username: formData.username || '',
                 bio: formData.bio || '',
                 location: formData.location || '',
@@ -125,7 +127,7 @@ export function OnboardProfilePage() {
             };
 
             const usersCollection = collection(db, 'users');
-            const q = query(usersCollection, where('walletAddress', '==', user.uid));
+            const q = query(usersCollection, where('walletAddress', '==', publicKey.toBase58()));
             const existingUsers = await getDocs(q);
 
             if (existingUsers.empty) {
@@ -153,7 +155,7 @@ export function OnboardProfilePage() {
     };
     
     if (loadingUser) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>
-    if (!user) return <WalletConnectPrompt accountType={type || 'fan'} onBack={() => router.push('/onboarding')} />;
+    if (!publicKey) return <WalletConnectPrompt accountType={type || 'fan'} onBack={() => router.push('/onboarding')} />;
 
     const renderAccountTypeSelection = () => (
         <div className="mb-6 space-y-3">
@@ -310,4 +312,3 @@ export function OnboardProfilePage() {
         </div>
     );
 }
-

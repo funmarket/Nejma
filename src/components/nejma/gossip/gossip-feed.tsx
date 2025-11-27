@@ -1,8 +1,6 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useGossipFeed } from '@/lib/nejma/gossip';
 import { PostComposer } from './post-composer';
 import { PostCard } from './post-card';
@@ -10,28 +8,11 @@ import { PostComments } from './post-comments';
 import { ServiceAdCard } from './service-ad-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useUser } from '@/hooks/use-user';
 
 export function GossipFeed() {
+  const { user } = useUser();
   const { posts, ads, loading, refreshFeed, comments, ratings, userPostRatings, expandedComments, toggleComments, submitComment, ratePost, userFollows, toggleFollow, feedFilter, setFeedFilter, handleDeleteComment } = useGossipFeed();
-  const { user } = useDevapp();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
-  useEffect(() => {
-    const loadCurrentUser = async () => {
-      if (user) {
-        const q = query(collection(db, "users"), where("walletAddress", "==", user.uid));
-        const usersSnapshot = await getDocs(q);
-        if (!usersSnapshot.empty) {
-          setCurrentUser({id: usersSnapshot.docs[0].id, ...usersSnapshot.docs[0].data()});
-        }
-      } else {
-        setCurrentUser(null);
-      }
-    };
-    loadCurrentUser();
-  }, [user]);
 
   if (loading) {
     return (
@@ -47,7 +28,7 @@ export function GossipFeed() {
   posts.forEach((post, index) => {
     feedItems.push(<PostCard key={post.id} post={post} onCommentClick={toggleComments} onRate={ratePost} ratings={ratings} onFollow={toggleFollow} isFollowing={!!userFollows[post.authorWallet]} userRating={userPostRatings[post.id] || 0} commentsCount={post.commentsCount || 0} />);
     if (expandedComments[post.id]) {
-      feedItems.push(<PostComments key={`comments-${post.id}`} postId={post.id} comments={comments[post.id] || []} onSubmitComment={submitComment} onDeleteComment={handleDeleteComment} currentUser={currentUser} />);
+      feedItems.push(<PostComments key={`comments-${post.id}`} postId={post.id} comments={comments[post.id] || []} onSubmitComment={submitComment} onDeleteComment={handleDeleteComment} />);
     }
     if ((index + 1) % 5 === 0 && ads.length > 0) {
       const adIndex = Math.floor(index / 5) % ads.length;
