@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import type { User, Video } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ interface UserProfileProps {
 export default function UserProfile({ profileUser, videos }: UserProfileProps) {
   const { userWallet } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   
   const [user, setUser] = useState(profileUser);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,12 +34,12 @@ export default function UserProfile({ profileUser, videos }: UserProfileProps) {
         await updateUser(user.id, formData);
         setUser(prev => ({...prev, ...formData}));
         setIsEditing(false);
-        toast({ title: "Success", description: "Profile updated successfully." });
+        addToast("Profile updated successfully.", "success");
         if(formData.username && formData.username !== user.username) {
             router.push(`/u/${formData.username}`);
         }
     } catch (error) {
-        toast({ title: "Error", description: "Failed to update profile.", variant: 'destructive' });
+        addToast("Failed to update profile.", "error");
     }
   };
 

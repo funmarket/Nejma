@@ -17,11 +17,11 @@ import {
   getGossipAuthors,
 } from '@/lib/actions/gossip.actions';
 import type { GossipPost, GossipComment, GossipRating, GossipUserFollows, GossipServiceAd, User } from '@/lib/types';
-import { useToast } from './use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 
 export function useGossipFeed() {
   const { currentUser } = useAuth();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   
   const [posts, setPosts] = useState<GossipPost[]>([]);
   const [authors, setAuthors] = useState<Record<string, User>>({});
@@ -75,12 +75,12 @@ export function useGossipFeed() {
       }
 
     } catch (error) {
-      toast({ title: "Failed to load feed", variant: 'destructive' });
+      addToast("Failed to load feed", 'error' );
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [currentUser, toast]);
+  }, [currentUser, addToast]);
 
   useEffect(() => {
     loadFeed();
@@ -106,7 +106,7 @@ export function useGossipFeed() {
 
   const submitComment = async (postId: string, content: string) => {
     if (!currentUser) {
-        toast({ title: 'Please log in to comment', variant: 'destructive' });
+        addToast('Please log in to comment', 'error' );
         return;
     }
     const optimisticComment: GossipComment = {
@@ -125,7 +125,7 @@ export function useGossipFeed() {
         const commentsData = await listComments(postId);
         setComments(prev => ({ ...prev, [postId]: commentsData }));
     } catch(e) {
-        toast({title: 'Failed to post comment', variant: 'destructive'});
+        addToast('Failed to post comment', 'error');
         setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== optimisticComment.id)}));
         setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1)} : p));
     }
@@ -138,7 +138,7 @@ export function useGossipFeed() {
     try {
         await apiDeleteComment(commentId);
     } catch(e) {
-        toast({title: 'Failed to delete comment', variant: 'destructive'});
+        addToast('Failed to delete comment', 'error');
         setComments(prev => ({...prev, [postId]: originalComments}));
         setPosts(prev => prev.map(p => p.id === postId ? {...p, commentsCount: (p.commentsCount || 1)} : p));
     }
@@ -147,7 +147,7 @@ export function useGossipFeed() {
 
   const ratePost = async (postId: string, score: number) => {
      if (!currentUser) {
-        toast({ title: 'Please log in to rate', variant: 'destructive' });
+        addToast('Please log in to rate', 'error' );
         return;
     }
     const originalRating = userPostRatings[postId];
@@ -163,7 +163,7 @@ export function useGossipFeed() {
         const updatedRatingsData = await getRatings(postId);
         setRatings(prev => ({ ...prev, [postId]: updatedRatingsData }));
     } catch (e) {
-        toast({title: "Failed to submit rating", variant: 'destructive'});
+        addToast("Failed to submit rating", 'error');
         setUserPostRatings(prev => ({ ...prev, [postId]: originalRating }));
         setRatings(prev => ({ ...prev, [postId]: originalRatings }));
     }
@@ -171,7 +171,7 @@ export function useGossipFeed() {
 
   const toggleFollow = async (followingId: string) => {
     if (!currentUser) {
-        toast({ title: 'Please log in to follow users', variant: 'destructive' });
+        addToast('Please log in to follow users', 'error' );
         return;
     }
     const isCurrentlyFollowing = !!userFollows[followingId];
@@ -179,14 +179,14 @@ export function useGossipFeed() {
     try {
         if(isCurrentlyFollowing) {
             await unfollowUser(currentUser.userId, followingId);
-            toast({ title: `Unfollowed` });
+            addToast(`Unfollowed`, 'success' );
         } else {
             await followUser(currentUser.userId, followingId);
-            toast({ title: `Followed` });
+            addToast(`Followed`, 'success' );
         }
     } catch (error) {
         setUserFollows(prev => ({...prev, [followingId]: isCurrentlyFollowing}));
-        toast({ title: 'Failed to update follow status', variant: 'destructive' });
+        addToast('Failed to update follow status', 'error' );
     }
   };
 

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 import { AuthProvider } from '@/context/AuthContext';
-import { Toaster } from '@/components/ui/toaster';
 import AuthHandler from '@/components/auth/AuthHandler';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { ToastProvider } from '@/components/providers/toast-provider';
 
 export const metadata: Metadata = {
   title: 'Spotly',
@@ -28,12 +28,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground overflow-x-hidden">
         <FirebaseClientProvider>
-          <AuthProvider>
-            <AppProvider>
-              <AuthHandler>{children}</AuthHandler>
-              <Toaster />
-            </AppProvider>
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <AppProvider>
+                <AuthHandler>{children}</AuthHandler>
+              </AppProvider>
+            </AuthProvider>
+          </ToastProvider>
         </FirebaseClientProvider>
       </body>
     </html>

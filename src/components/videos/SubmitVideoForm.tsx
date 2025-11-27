@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { createVideo } from '@/lib/actions/video.actions';
 import { parseYouTubeUrl } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import type { VideoCategory } from '@/lib/types';
 export default function SubmitVideoForm() {
     const { currentUser } = useAuth();
     const router = useRouter();
-    const { toast } = useToast();
+    const { addToast } = useToast();
 
     const [rawVideoInput, setRawVideoInput] = useState('');
     const [description, setDescription] = useState('');
@@ -44,15 +44,15 @@ export default function SubmitVideoForm() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!currentUser) {
-            toast({ title: 'Error', description: 'You must be logged in to submit a video.', variant: 'destructive' });
+            addToast('You must be logged in to submit a video.', 'error');
             return;
         }
         if (currentUser.role !== 'artist') {
-            toast({ title: 'Artists Only', description: 'Only artists can upload videos.', variant: 'destructive' });
+            addToast('Only artists can upload videos.', 'error');
             return;
         }
         if (!previewUrl) {
-            toast({ title: 'Invalid URL', description: 'Please provide a valid YouTube link.', variant: 'destructive' });
+            addToast('Please provide a valid YouTube link.', 'error');
             return;
         }
 
@@ -65,11 +65,11 @@ export default function SubmitVideoForm() {
                 description,
                 category,
             });
-            toast({ title: 'Success!', description: 'Video submitted successfully.' });
+            addToast('Video submitted successfully.', 'success');
             router.push('/');
         } catch (error) {
             console.error('Error submitting video:', error);
-            toast({ title: 'Submission Failed', description: 'Could not submit your video. Please try again.', variant: 'destructive' });
+            addToast('Could not submit your video. Please try again.', 'error');
         } finally {
             setIsSubmitting(false);
         }

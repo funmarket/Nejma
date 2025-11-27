@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ThumbsUp, User, Sparkles } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import type { User as UserType, Video } from '@/lib/types';
 import { getActiveUsers } from '@/lib/actions/user.actions';
 import { getVideos } from '@/lib/actions/video.actions';
@@ -12,7 +12,7 @@ import { Skeleton } from '../ui/skeleton';
 
 export default function SearchResults({ query }: { query: string }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [videos, setVideos] = useState<Video[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
@@ -45,13 +45,13 @@ export default function SearchResults({ query }: { query: string }) {
 
       } catch (error) {
         console.error('Error searching:', error);
-        toast({ title: 'Search Failed', description: 'Could not perform search.', variant: 'destructive' });
+        addToast('Could not perform search.', 'error');
       } finally {
         setLoading(false);
       }
     };
     loadSearchResults();
-  }, [query, toast]);
+  }, [query, addToast]);
 
   if (loading) {
     return (

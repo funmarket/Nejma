@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { useAppContext } from '@/context/AppContext';
 import VideoCard from './VideoCard';
 import { getVideos, getArtistsForVideos, voteOnVideo, toggleBookmark } from '@/lib/actions/video.actions';
@@ -20,7 +20,7 @@ export default function VideoFeed({
   initialArtists: Record<string, User> 
 }) {
   const { userWallet } = useAuth();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const router = useRouter();
   const { activeFeedTab } = useAppContext();
 
@@ -56,11 +56,11 @@ export default function VideoFeed({
       if(emblaApi) emblaApi.scrollTo(0);
 
     } catch (err) {
-      toast({ title: 'Error', description: 'Failed to load videos.', variant: 'destructive' });
+      addToast('Failed to load videos.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [activeFeedTab, toast, emblaApi]);
+  }, [activeFeedTab, addToast, emblaApi]);
 
   useEffect(() => {
     loadVideos();
@@ -102,7 +102,7 @@ export default function VideoFeed({
     try {
       await voteOnVideo(videoId, isTop);
     } catch (error) {
-      toast({ title: 'Vote Failed', description: 'Could not save your vote.', variant: 'destructive' });
+      addToast('Could not save your vote.', 'error');
       // Revert optimistic update
       setVideos(videos);
     }
@@ -110,7 +110,7 @@ export default function VideoFeed({
 
   const handleToggleBookmark = async (videoId: string) => {
     if (!userWallet) {
-      toast({ title: 'Login Required', description: 'Please connect your wallet to save videos.' });
+      addToast('Please connect your wallet to save videos.', 'info');
       return;
     }
     const isBookmarked = !!bookmarkedState[videoId];
@@ -118,27 +118,27 @@ export default function VideoFeed({
     try {
       const result = await toggleBookmark(userWallet, videoId);
       setBookmarkedState(prev => ({ ...prev, [videoId]: result.bookmarked }));
-      toast({ title: result.bookmarked ? 'Saved!' : 'Removed from saved' });
+      addToast(result.bookmarked ? 'Saved!' : 'Removed from saved', 'success');
     } catch (error) {
       setBookmarkedState(prev => ({ ...prev, [videoId]: isBookmarked }));
-      toast({ title: 'Error', description: 'Could not update your saved videos.', variant: 'destructive' });
+      addToast('Could not update your saved videos.', 'error');
     }
   };
 
   const handleTip = () => {
     if (!userWallet) {
-      toast({ title: 'Login Required', description: 'Please connect your wallet to tip artists.' });
+      addToast('Please connect your wallet to tip artists.', 'info');
       return;
     }
-    toast({ title: 'Coming Soon!', description: 'Tipping functionality is under development.' });
+    addToast('Tipping functionality is under development.', 'info');
   };
   
   const handleBookOrAdopt = (action: 'book' | 'adopt') => {
     if (!userWallet) {
-      toast({ title: 'Login Required', description: `Please connect your wallet to ${action} artists.` });
+      addToast(`Please connect your wallet to ${action} artists.`, 'info');
       return;
     }
-    toast({ title: 'Coming Soon!', description: `${action.charAt(0).toUpperCase() + action.slice(1)}ing functionality is under development.` });
+    addToast(`${action.charAt(0).toUpperCase() + action.slice(1)}ing functionality is under development.`, 'info');
   };
 
   const renderedVideos = useMemo(() => {

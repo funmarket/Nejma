@@ -13,7 +13,7 @@ import type { User } from '@/lib/types';
 import { getUserByWallet } from '@/lib/actions/user.actions';
 import { loginWithWallet, getProvider, setProvider, clearProvider } from '@/lib/wallet/loginWithWallet';
 import type { WalletProvider } from '@/lib/wallet/solanaWallet';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { useUser as useFirebaseAuthUser } from '@/firebase'; // Use the user from our Firebase provider
 import { getAuth } from 'firebase/auth';
 
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userWallet, setUserWallet] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { addToast } = useToast();
   
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseAuthUser();
 
@@ -67,10 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProvider(provider);
       // The useEffect above will handle setting userWallet and currentUser
       // based on the firebaseUser change.
-      toast({
-        title: 'Wallet Connected',
-        description: `Successfully connected.`,
-      });
+      addToast('Wallet Connected', 'success');
     } catch (e) {
       console.error('Wallet connect failed', e);
       let errorMessage = 'Could not connect to the wallet. Please try again.';
@@ -81,14 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             errorMessage = 'An internal error occurred. This could be a CORS issue or a problem with the authentication function. Please try again later.'
         }
       }
-      toast({
-        title: 'Wallet Connection Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      addToast(errorMessage, 'error');
       setLoading(false);
     }
-  }, [toast]);
+  }, [addToast]);
 
 
   const disconnectWallet = useCallback(async () => {
