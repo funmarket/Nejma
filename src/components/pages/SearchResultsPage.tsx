@@ -2,15 +2,15 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sparkles, ThumbsUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
+import { collection, query, where, getDocs, or, and } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function SearchResultsPage() {
   const searchParams = useSearchParams();
-  const { devbaseClient } = useDevapp();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -20,30 +20,38 @@ export function SearchResultsPage() {
 
   useEffect(() => {
     const loadSearchResults = async () => {
-      if (!devbaseClient || !searchQuery.trim()) {
+      if (!searchQuery.trim()) {
         setLoading(false);
+        setUsers([]);
+        setVideos([]);
         return;
       }
       setLoading(true);
       try {
-        const query = searchQuery.toLowerCase();
+        const queryLower = searchQuery.toLowerCase();
         
-        // This is not efficient for Firestore. Real-world would need a search service like Algolia/Typesense.
-        // Emulating the original logic for now.
-        const allVideos = await devbaseClient.listEntities('videos', { status: 'active' });
-        const matchingVideos = allVideos.filter(v => 
-          v.description?.toLowerCase().includes(query) || 
-          v.category?.toLowerCase().includes(query)
+        // Firestore doesn't support full-text search. This is a very basic approximation.
+        // For users: search by username.
+        const usersQuery = query(
+            collection(db, 'users'), 
+            where('username', '>=', queryLower), 
+            where('username', '<=', queryLower + '\uf8ff')
         );
+        const usersSnapshot = await getDocs(usersQuery);
+        setUsers(usersSnapshot.docs.map(d => ({id: d.id, ...d.data()})));
 
-        const allUsers = await devbaseClient.listEntities('users');
-        const matchingUsers = allUsers.filter(u => 
-          u.username?.toLowerCase().includes(query) || 
-          u.bio?.toLowerCase().includes(query)
-        );
-
+        // For videos: search by description or category.
+        // This is inefficient and not scalable. A real app needs a dedicated search service.
+        const allVideosQuery = query(collection(db, 'videos'), where('status', '==', 'active'));
+        const allVideosSnapshot = await getDocs(allVideosQuery);
+        const matchingVideos = allVideosSnapshot.docs
+            .map(d => ({id: d.id, ...d.data()}))
+            .filter(v => 
+                v.description?.toLowerCase().includes(queryLower) || 
+                v.category?.toLowerCase().includes(queryLower)
+            );
         setVideos(matchingVideos);
-        setUsers(matchingUsers);
+
       } catch (error) {
         console.error('Error searching:', error);
       } finally {
@@ -51,7 +59,7 @@ export function SearchResultsPage() {
       }
     };
     loadSearchResults();
-  }, [searchQuery, devbaseClient]);
+  }, [searchQuery]);
 
   return (
     <div className="min-h-screen text-foreground pt-6 pb-20">

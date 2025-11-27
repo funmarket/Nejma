@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
-import { devbaseHelpers } from '@/lib/nejma/helpers';
 import { parseYouTubeUrl } from '@/lib/nejma/youtube';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,9 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { VideoSummarizer } from '@/components/nejma/video-summarizer';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function SubmitVideoPage() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -31,12 +32,15 @@ export function SubmitVideoPage() {
       router.push('/onboarding');
     } else {
       const loadUser = async () => {
-        const userProfile = await devbaseHelpers.getUserByWallet(devbaseClient, user.uid);
-        setCurrentUser(userProfile);
+        const q = query(collection(db, 'users'), where('walletAddress', '==', user.uid));
+        const userSnapshot = await getDocs(q);
+        if (!userSnapshot.empty) {
+            setCurrentUser({ id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data()});
+        }
       };
       loadUser();
     }
-  }, [user, devbaseClient, router]);
+  }, [user, router]);
 
   useEffect(() => {
     if (rawVideoInput.trim()) {
@@ -56,7 +60,7 @@ export function SubmitVideoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!devbaseClient || !currentUser) return;
+    if (!currentUser) return;
     if (currentUser.role !== 'artist') {
       addToast('Only artists can upload videos. Please create an artist profile.', 'error');
       return;
@@ -72,12 +76,23 @@ export function SubmitVideoPage() {
     }
     setIsSubmitting(true);
     try {
-      await devbaseHelpers.createVideo(devbaseClient, {
+      const newVideoRef = await addDoc(collection(db, 'videos'), {
         artistId: currentUser.userId,
         rawVideoInput: rawVideoInput.trim(),
         description,
         category,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        topCount: 0,
+        flopCount: 0,
+        views: 0,
+        rankingScore: 0,
+        bookCount: 0,
+        adoptCount: 0,
       });
+      await updateDoc(doc(db, 'videos', newVideoRef.id), { videoId: newVideoRef.id });
+      
       addToast('Video submitted successfully!', 'success');
       router.push('/');
     } catch (error) {

@@ -10,10 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Sparkles, ArrowLeft } from 'lucide-react';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function RentalDetailPage() {
   const { id } = useParams();
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -24,22 +26,29 @@ export function RentalDetailPage() {
 
   useEffect(() => {
     const loadRental = async () => {
-      if (!devbaseClient) return;
-      try {
-        const rentalData = await devbaseClient.getEntity('rentals', id as string);
-        setRental(rentalData);
-        if (rentalData?.ownerId) {
-          const users = await devbaseClient.listEntities('users', { walletAddress: rentalData.ownerId });
-          if (users.length > 0) setOwner(users[0]);
+        if (!id) return;
+        try {
+            const rentalRef = doc(db, 'rentals', id as string);
+            const rentalSnap = await getDoc(rentalRef);
+            if(rentalSnap.exists()) {
+                const rentalData = {id: rentalSnap.id, ...rentalSnap.data()};
+                setRental(rentalData);
+                if (rentalData?.ownerId) {
+                    const q = query(collection(db, 'users'), where('walletAddress', '==', rentalData.ownerId));
+                    const usersSnapshot = await getDocs(q);
+                    if (!usersSnapshot.empty) {
+                        setOwner(usersSnapshot.docs[0].data());
+                    }
+                }
+            }
+        } catch (error) {
+            addToast('Failed to load rental', 'error');
+        } finally {
+            setLoading(false);
         }
-      } catch (error) {
-        addToast('Failed to load rental', 'error');
-      } finally {
-        setLoading(false);
-      }
     };
     loadRental();
-  }, [devbaseClient, id]);
+  }, [id, addToast]);
   
   const handleContact = () => {
     if (!user) { addToast('Please connect wallet to contact owner', 'error'); return; }

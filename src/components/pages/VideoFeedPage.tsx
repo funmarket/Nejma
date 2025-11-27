@@ -4,12 +4,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
-import { devbaseHelpers } from '@/lib/nejma/helpers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VideoCard } from '@/components/nejma/video-card';
 import { Sparkles } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDocs, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 function SkeletonLoader() {
@@ -23,7 +22,7 @@ function SkeletonLoader() {
 }
 
 export function VideoFeedPage() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const searchParams = useSearchParams();
   const activeFeedTab = searchParams.get('category') || 'music';
 
@@ -36,16 +35,18 @@ export function VideoFeedPage() {
   const { addToast } = useToast();
 
   const loadArtistForVideo = useCallback(async (artistId: string) => {
-    if (!devbaseClient || !artistId || artists[artistId]) return;
+    if (!artistId || artists[artistId]) return;
     try {
-      const artistData = await devbaseHelpers.getUserByWallet(devbaseClient, artistId);
-      if (artistData) {
+      const q = query(collection(db, 'users'), where('userId', '==', artistId));
+      const userSnapshot = await getDocs(q);
+      if(!userSnapshot.empty) {
+        const artistData = userSnapshot.docs[0].data();
         setArtists(prev => ({ ...prev, [artistId]: artistData }));
       }
     } catch (err) {
       console.error(`Failed to load artist ${artistId}`, err);
     }
-  }, [devbaseClient, artists]);
+  }, [artists]);
 
   useEffect(() => {
     const videosCollection = collection(db, 'videos');
@@ -85,11 +86,13 @@ export function VideoFeedPage() {
 
   
   const loadBookmarks = async () => {
-    if (!user || !devbaseClient) return;
+    if (!user) return;
     try {
-      const bookmarks = await devbaseClient.listEntities('bookmarks', { userId: user.uid });
-      const bookmarkMap = bookmarks.reduce((acc, bookmark) => {
-        acc[bookmark.videoId] = bookmark.id;
+      const q = query(collection(db, 'bookmarks'), where('userId', '==', user.uid));
+      const bookmarksSnapshot = await getDocs(q);
+      const bookmarkMap = bookmarksSnapshot.docs.reduce((acc, bookmarkDoc) => {
+        const data = bookmarkDoc.data();
+        acc[data.videoId] = bookmarkDoc.id;
         return acc;
       }, {} as Record<string, string>);
       setBookmarkedVideos(bookmarkMap);
@@ -104,21 +107,16 @@ export function VideoFeedPage() {
     } else {
         setBookmarkedVideos({});
     }
-  }, [user, devbaseClient]);
+  }, [user]);
 
   const recordView = async (videoId: string) => {
-    if (!user || !devbaseClient) return;
+    if (!user || !videoId) return;
     try {
-      devbaseClient.createEntity('video_views', {
-        videoId,
-        viewerId: user.uid,
-        viewedAt: Date.now()
-      });
-      const video = videos.find(v => v.id === videoId);
-      if (video) {
-        devbaseClient.updateEntity('videos', videoId, { views: (video.views || 0) + 1 });
-      }
+        const videoRef = doc(db, 'videos', videoId);
+        // We don't create view records to avoid excessive writes, just increment.
+        await updateDoc(videoRef, { views: increment(1) });
     } catch (error) {
+      // This is a non-critical operation, so we just log the error.
       console.error('Error recording view:', error);
     }
   };
@@ -137,14 +135,13 @@ export function VideoFeedPage() {
     const video = videos[currentIndex];
     const field = isTop ? 'topCount' : 'flopCount';
 
-    setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) + 1 } : v));
-
     try {
-        await devbaseClient.updateEntity('videos', video.id, { [field]: (video[field] || 0) + 1 });
+        const videoRef = doc(db, 'videos', video.id);
+        await updateDoc(videoRef, { [field]: increment(1) });
+        addToast('Voted!', 'success');
         nextVideo();
     } catch (error) {
         addToast('Failed to vote', 'error');
-        setVideos(prev => prev.map((v, i) => i === currentIndex ? { ...v, [field]: (v[field] || 0) - 1 } : v));
     }
   };
 
@@ -162,17 +159,17 @@ export function VideoFeedPage() {
     const message = prompt('Add a message for the artist (optional):');
     
     try {
-      await devbaseClient.createEntity(interactionType, {
+      await addDoc(collection(db, interactionType), {
           artistId: video.artistId,
           businessId: user.uid,
           videoId: video.id,
           message: message || `New ${interactionType} request`,
           baseAmount: baseAmount,
-          createdAt: Date.now()
+          createdAt: serverTimestamp()
       });
 
       const countField = interactionType === 'bookings' ? 'bookCount' : 'adoptCount';
-      await devbaseClient.updateEntity('videos', video.id, { [countField]: (video[countField] || 0) + 1 });
+      await updateDoc(doc(db, 'videos', video.id), { [countField]: increment(1) });
       
       addToast(`${interactionType.slice(0, -1)} created successfully!`, 'success');
     } catch (error) {
@@ -182,7 +179,7 @@ export function VideoFeedPage() {
   };
 
   const toggleBookmark = async () => {
-    if (!user || !devbaseClient) { addToast('Please connect wallet to save', 'error'); return; }
+    if (!user) { addToast('Please connect wallet to save', 'error'); return; }
     if (!videos[currentIndex]) return;
 
     const videoId = videos[currentIndex].id;
@@ -190,7 +187,7 @@ export function VideoFeedPage() {
 
     try {
       if (existingBookmarkId) {
-        await devbaseClient.deleteEntity('bookmarks', existingBookmarkId);
+        await deleteDoc(doc(db, 'bookmarks', existingBookmarkId));
         setBookmarkedVideos(prev => {
           const newBookmarks = { ...prev };
           delete newBookmarks[videoId];
@@ -198,8 +195,8 @@ export function VideoFeedPage() {
         });
         addToast('Removed from saved', 'success');
       } else {
-        const newBookmark = await devbaseClient.createEntity('bookmarks', { userId: user.uid, videoId: videoId, createdAt: Date.now() });
-        setBookmarkedVideos(prev => ({...prev, [videoId]: newBookmark.id }));
+        const newBookmarkRef = await addDoc(collection(db, 'bookmarks'), { userId: user.uid, videoId: videoId, createdAt: serverTimestamp() });
+        setBookmarkedVideos(prev => ({...prev, [videoId]: newBookmarkRef.id }));
         addToast('Saved!', 'success');
       }
     } catch (error) {
@@ -220,12 +217,12 @@ export function VideoFeedPage() {
     if (isNaN(tipAmount) || tipAmount <= 0) { addToast('Invalid amount', 'error'); return; }
 
     try {
-      await devbaseClient.createEntity('tips', {
+      await addDoc(collection(db, 'tips'), {
         fromWallet: user.uid,
         toWallet: video.artistId,
         amount: tipAmount,
         videoId: video.id,
-        createdAt: Date.now()
+        createdAt: serverTimestamp()
       });
       addToast(`Tipped ${tipAmount} SOL!`, 'success');
     } catch (error) {

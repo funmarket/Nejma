@@ -11,9 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function NewListingPage() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
   
@@ -33,7 +35,7 @@ export function NewListingPage() {
     setLoading(true);
     try {
       const imageUrls = formData.images.filter(img => img.trim() !== '');
-      await devbaseClient.createEntity('marketplace_products', {
+      await addDoc(collection(db, 'marketplace_products'), {
         sellerWallet: user.uid,
         title: formData.title,
         description: formData.description,
@@ -45,7 +47,8 @@ export function NewListingPage() {
         location: formData.location,
         images: JSON.stringify(imageUrls),
         status: 'active',
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         stock: 1,
       });
       addToast('Product listed successfully!', 'success');

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
-import { UserButton } from '@/components/auth/user-button';
+import { useUserButton } from '@/components/auth/user-button';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 type WalletConnectPromptProps = {
   accountType: string;
@@ -13,22 +14,24 @@ type WalletConnectPromptProps = {
 };
 
 export function WalletConnectPrompt({ accountType, onBack }: WalletConnectPromptProps) {
-  const { devbaseClient } = useDevapp();
   const { publicKey, connected } = useWallet();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
+  const { UserButton } = useUserButton();
 
   useEffect(() => {
     const checkAndRedirect = async () => {
       if (connected && publicKey && !checking) {
         setChecking(true);
         try {
-          const existingUsers = await devbaseClient.listEntities('users', { walletAddress: publicKey.toBase58() });
-          if (existingUsers.length === 0) {
-            router.push(`/create/${accountType}`);
-          } else {
-            router.push(`/create/${accountType}`);
-          }
+            const q = query(collection(db, 'users'), where('walletAddress', '==', publicKey.toBase58()));
+            const existingUsers = await getDocs(q);
+          
+            if (existingUsers.empty) {
+                router.push(`/create/${accountType}`);
+            } else {
+                router.push(`/create/${accountType}`);
+            }
         } catch (error) {
           console.error('Error checking profile:', error);
           router.push(`/create/${accountType}`);
@@ -38,7 +41,7 @@ export function WalletConnectPrompt({ accountType, onBack }: WalletConnectPrompt
       }
     };
     checkAndRedirect();
-  }, [publicKey, connected, accountType, router, devbaseClient, checking]);
+  }, [publicKey, connected, accountType, router, checking]);
 
   const getAccountTypeDescription = () => {
     switch (accountType) {

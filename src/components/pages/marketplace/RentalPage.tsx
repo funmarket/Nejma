@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { RENTAL_SUBCATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
@@ -11,9 +10,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function RentalPage() {
-  const { devbaseClient, user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -24,25 +24,20 @@ export function RentalPage() {
   const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    if (!user) {
-        // router.push('/onboarding');
-    }
-  }, [user, router]);
-  
-  useEffect(() => {
     const loadRentals = async () => {
-      if (!devbaseClient) return;
       setLoading(true);
       try {
-        const filters: any = { status: 'active' };
-        if (category !== 'all') filters.category = category;
-        if (subcategory !== 'all') filters.subCategory = subcategory;
-        let allRentals = await devbaseClient.listEntities('rentals', filters);
+        const filters = [where('status', '==', 'active')];
+        if (category !== 'all') filters.push(where('category', '==', category));
+        if (subcategory !== 'all') filters.push(where('subCategory', '==', subcategory));
         
-        if (sortBy === 'price_low') allRentals.sort((a, b) => (a.pricePerDay || 0) - (b.pricePerDay || 0));
-        else if (sortBy === 'price_high') allRentals.sort((a, b) => (b.pricePerDay || 0) - (a.pricePerDay || 0));
-        else allRentals.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        
+        let sortOrder: any = orderBy('createdAt', 'desc');
+        if (sortBy === 'price_low') sortOrder = orderBy('pricePerDay', 'asc');
+        else if (sortBy === 'price_high') sortOrder = orderBy('pricePerDay', 'desc');
+
+        const q = query(collection(db, 'rentals'), ...filters, sortOrder);
+        const snapshot = await getDocs(q);
+        const allRentals = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
         setRentals(allRentals);
       } catch (error) {
         addToast('Failed to load rentals', 'error');
@@ -51,7 +46,7 @@ export function RentalPage() {
       }
     };
     loadRentals();
-  }, [devbaseClient, category, subcategory, sortBy]);
+  }, [category, subcategory, sortBy, addToast]);
   
   return (
     <div className="min-h-screen pt-6 pb-20">
@@ -81,7 +76,7 @@ export function RentalPage() {
                     <SelectTrigger className="w-[200px]"><SelectValue placeholder="Subcategory" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Subcategories</SelectItem>
-                        {RENTAL_SUBCATEGORIES[category]?.map(sub => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}
+                        {RENTAL_SUBCATEGORIES[category as keyof typeof RENTAL_SUBCATEGORIES]?.map(sub => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}
                     </SelectContent>
                 </Select>
             )}

@@ -10,10 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Sparkles, ArrowLeft } from 'lucide-react';
+import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function ProductDetailPage() {
   const { id } = useParams();
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -24,13 +26,21 @@ export function ProductDetailPage() {
 
   useEffect(() => {
     const loadProduct = async () => {
-      if (!devbaseClient) return;
+      if (!id) return;
       try {
-        const prod = await devbaseClient.getEntity('marketplace_products', id as string);
-        setProduct(prod);
-        if (prod?.sellerWallet) {
-          const users = await devbaseClient.listEntities('users', { walletAddress: prod.sellerWallet });
-          if (users.length > 0) setSeller(users[0]);
+        const prodRef = doc(db, 'marketplace_products', id as string);
+        const prodSnap = await getDoc(prodRef);
+        
+        if (prodSnap.exists()) {
+            const prodData = {id: prodSnap.id, ...prodSnap.data()};
+            setProduct(prodData);
+            if (prodData?.sellerWallet) {
+              const q = query(collection(db, 'users'), where('walletAddress', '==', prodData.sellerWallet));
+              const usersSnapshot = await getDocs(q);
+              if (!usersSnapshot.empty) {
+                setSeller(usersSnapshot.docs[0].data());
+              }
+            }
         }
       } catch (error) {
         addToast('Failed to load product', 'error');
@@ -39,12 +49,12 @@ export function ProductDetailPage() {
       }
     };
     loadProduct();
-  }, [devbaseClient, id]);
+  }, [id, addToast]);
 
   const handleBuy = async (currency: string) => {
     if (!user) { addToast('Please connect wallet to buy', 'error'); return; }
     addToast('Order created! Funds held in escrow until delivery.', 'success');
-    // Actual buy logic would go here
+    // Actual buy logic would go here, e.g., calling a serverless function
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;

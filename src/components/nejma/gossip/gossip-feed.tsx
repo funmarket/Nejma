@@ -10,25 +10,28 @@ import { PostComments } from './post-comments';
 import { ServiceAdCard } from './service-ad-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function GossipFeed() {
   const { posts, ads, loading, refreshFeed, comments, ratings, userPostRatings, expandedComments, toggleComments, submitComment, ratePost, userFollows, toggleFollow, feedFilter, setFeedFilter, handleDeleteComment } = useGossipFeed();
-  const { user, devbaseClient } = useDevapp();
+  const { user } = useDevapp();
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     const loadCurrentUser = async () => {
-      if (user && devbaseClient) {
-        const usersList = await devbaseClient.listEntities('users', { walletAddress: user.uid });
-        if (usersList.length > 0) {
-          setCurrentUser(usersList[0]);
+      if (user) {
+        const q = query(collection(db, "users"), where("walletAddress", "==", user.uid));
+        const usersSnapshot = await getDocs(q);
+        if (!usersSnapshot.empty) {
+          setCurrentUser({id: usersSnapshot.docs[0].id, ...usersSnapshot.docs[0].data()});
         }
       } else {
         setCurrentUser(null);
       }
     };
     loadCurrentUser();
-  }, [user, devbaseClient]);
+  }, [user]);
 
   if (loading) {
     return (

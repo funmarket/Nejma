@@ -1,12 +1,13 @@
-
 "use client";
 import { useEffect, useState } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { SplashScreen } from '../nejma/splash-screen';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { collection, query, where, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function AuthHandler({ children }: { children: React.ReactNode }) {
-  const { devbaseClient } = useDevapp();
+  const { user } = useDevapp();
   const { publicKey, connecting, connected } = useWallet();
   const [isEnsuringProfile, setIsEnsuringProfile] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
@@ -26,15 +27,18 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      if (publicKey && connected && devbaseClient) {
+      if (publicKey && connected) {
         setIsEnsuringProfile(true);
         try {
-          const usersList = await devbaseClient.listEntities('users', { walletAddress: publicKey.toBase58() });
-          if (usersList.length === 0) {
+          const usersCollection = collection(db, 'users');
+          const q = query(usersCollection, where('walletAddress', '==', publicKey.toBase58()));
+          const usersSnapshot = await getDocs(q);
+          
+          if (usersSnapshot.empty) {
             console.log(`Creating new user profile for wallet: ${publicKey.toBase58()}`);
             const username = `user${publicKey.toBase58().slice(0, 6)}`;
             
-            const newUser = await devbaseClient.createEntity('users', {
+            const newUserRef = await addDoc(usersCollection, {
               walletAddress: publicKey.toBase58(),
               username: username,
               bio: '',
@@ -42,12 +46,13 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
-            await devbaseClient.updateEntity('users', newUser.id, { userId: newUser.id });
+            await updateDoc(doc(db, 'users', newUserRef.id), { userId: newUserRef.id });
             console.log('User profile created successfully.');
           } else {
-            const existingUser = usersList[0];
-            if (!existingUser.userId || existingUser.userId !== existingUser.id) {
-              await devbaseClient.updateEntity('users', existingUser.id, { userId: existingUser.id });
+            const userDoc = usersSnapshot.docs[0];
+            const existingUser = userDoc.data();
+            if (!existingUser.userId || existingUser.userId !== userDoc.id) {
+              await updateDoc(userDoc.ref, { userId: userDoc.id });
             }
           }
         } catch (error) {
@@ -60,7 +65,7 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
       }
     };
     ensureUserProfile();
-  }, [publicKey, devbaseClient, connecting, connected]);
+  }, [publicKey, connecting, connected]);
 
   if (showSplash) {
     return <SplashScreen />;

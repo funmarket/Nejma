@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDevapp } from '@/components/providers/devapp-provider';
-import { devbaseHelpers } from '@/lib/nejma/helpers';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function ProfilePage() {
-  const { user, devbaseClient, loadingUser } = useDevapp();
+  const { user, loadingUser } = useDevapp();
   const router = useRouter();
   const [status, setStatus] = useState("Loading profile...");
 
@@ -20,13 +21,17 @@ export function ProfilePage() {
     }
 
     const loadUser = async () => {
-      if (!devbaseClient || !user) return;
+      if (!user) return;
       try {
-        const userProfile = await devbaseHelpers.checkExistingProfile(devbaseClient, user.uid);
-        if (!userProfile || !userProfile.username) {
+        const usersCollection = collection(db, 'users');
+        const q = query(usersCollection, where('walletAddress', '==', user.uid));
+        const userSnapshot = await getDocs(q);
+
+        if (userSnapshot.empty || !userSnapshot.docs[0].data().username) {
           setStatus("Profile not found, redirecting to setup...");
           router.push('/create/fan');
         } else {
+          const userProfile = userSnapshot.docs[0].data();
           setStatus(`Redirecting to @${userProfile.username}...`);
           router.push(`/u/${userProfile.username}`);
         }
@@ -38,7 +43,7 @@ export function ProfilePage() {
     };
 
     loadUser();
-  }, [user, loadingUser, router, devbaseClient]);
+  }, [user, loadingUser, router]);
 
   return (
     <div className="min-h-screen bg-background pt-16 pb-20 flex items-center justify-center">

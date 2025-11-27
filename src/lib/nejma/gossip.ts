@@ -2,23 +2,39 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { useDevapp } from '@/components/providers/devapp-provider';
-import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, getDocs, doc, writeBatch, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+async function getDocuments(q: any) {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function getDocument(collectionName: string, id: string) {
+    const docRef = doc(db, collectionName, id);
+    const snap = await getDocs(docRef as any); // Bug in TS def, getDocs works on single doc
+    if (!snap.empty) {
+        const d = snap.docs[0];
+        return { id: d.id, ...d.data() };
+    }
+    return null;
+}
+
 export function useGossipApi() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
 
   const createPost = useCallback(async (postData: any) => {
     if (!user) throw new Error("User not authenticated");
-    return devbaseClient.createEntity('gossip_posts', {
-      ...postData,
-      authorWallet: user.uid,
-      createdAt: Date.now(),
-      commentsCount: 0,
-      rating: 0,
-      ratingCount: 0
+    return addDoc(collection(db, 'gossip_posts'), {
+        ...postData,
+        authorWallet: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        commentsCount: 0,
+        rating: 0,
+        ratingCount: 0,
     });
-  }, [devbaseClient, user]);
+  }, [user]);
 
   const createComment = useCallback(async (postId: string, content: string) => {
     if (!user) throw new Error("User not authenticated");
@@ -29,16 +45,18 @@ export function useGossipApi() {
         postId,
         content,
         authorWallet: user.uid,
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
     });
 
     const postRef = doc(db, 'gossip_posts', postId);
-    const postSnap = await devbaseClient.getEntity('gossip_posts', postId);
-    batch.update(postRef, { commentsCount: (postSnap.commentsCount || 0) + 1 });
+    const postSnap = await getDocument('gossip_posts', postId);
+    if(postSnap) {
+        batch.update(postRef, { commentsCount: (postSnap.commentsCount || 0) + 1 });
+    }
     
     await batch.commit();
 
-  }, [devbaseClient, user]);
+  }, [user]);
 
   const deleteComment = useCallback(async (commentId: string, postId: string) => {
     const batch = writeBatch(db);
@@ -47,14 +65,14 @@ export function useGossipApi() {
     batch.delete(commentRef);
 
     const postRef = doc(db, 'gossip_posts', postId);
-    const postSnap = await devbaseClient.getEntity('gossip_posts', postId);
-    if ((postSnap.commentsCount || 0) > 0) {
+    const postSnap = await getDocument('gossip_posts', postId);
+    if (postSnap && (postSnap.commentsCount || 0) > 0) {
         batch.update(postRef, { commentsCount: postSnap.commentsCount - 1 });
     }
 
     await batch.commit();
 
-  }, [devbaseClient]);
+  }, []);
   
   const ratePost = useCallback(async (postId: string, score: number) => {
     if (!user) throw new Error("User not authenticated");
@@ -69,7 +87,7 @@ export function useGossipApi() {
         batch.update(ratingDocRef, { score });
     } else {
         const newRatingRef = doc(collection(db, 'gossip_ratings'));
-        batch.set(newRatingRef, { postId, score, raterWallet: user.uid, createdAt: Date.now() });
+        batch.set(newRatingRef, { postId, score, raterWallet: user.uid, createdAt: serverTimestamp() });
     }
 
     const postRef = doc(db, 'gossip_posts', postId);
@@ -82,9 +100,9 @@ export function useGossipApi() {
     let totalScore = allRatings.reduce((sum, r) => sum + r.score, 0);
     let ratingCount = allRatings.length;
 
-    if (existingRating) { // user is updating their score
+    if (existingRating) {
         totalScore = (totalScore - existingRating.score) + score;
-    } else { // new rating
+    } else {
         totalScore += score;
         ratingCount += 1;
     }
@@ -98,12 +116,12 @@ export function useGossipApi() {
   
   const followUser = useCallback(async (followingId: string) => {
     if(!user) throw new Error("User not authenticated");
-    return devbaseClient.createEntity('gossip_user_follows', { followerWallet: user.uid, followingId, createdAt: Date.now() });
-  }, [devbaseClient, user]);
+    return addDoc(collection(db, 'gossip_user_follows'), { followerWallet: user.uid, followingId, createdAt: serverTimestamp() });
+  }, [user]);
   
   const unfollowUser = useCallback(async (followId: string) => {
-    return devbaseClient.deleteEntity('gossip_user_follows', followId);
-  }, [devbaseClient]);
+    return deleteDoc(doc(db, 'gossip_user_follows', followId));
+  }, []);
 
   return { createPost, createComment, deleteComment, ratePost, followUser, unfollowUser };
 }

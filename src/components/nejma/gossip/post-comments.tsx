@@ -9,9 +9,11 @@ import { User, Send, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function PostComments({ postId, comments, onSubmitComment, onDeleteComment, currentUser }: any) {
-  const { user: authUser, devbaseClient } = useDevapp();
+  const { user: authUser } = useDevapp();
   const router = useRouter();
   
   const [newComment, setNewComment] = useState('');
@@ -23,16 +25,20 @@ export function PostComments({ postId, comments, onSubmitComment, onDeleteCommen
     const loadAuthors = async () => {
       const authors: Record<string, any> = {};
       const authorWallets = new Set(comments.map((c: any) => c.authorWallet));
-      for (const wallet of authorWallets) {
-        if (!authors[wallet as string]) {
-          const users = await devbaseClient.listEntities('users', { walletAddress: wallet });
-          if (users.length > 0) authors[wallet as string] = users[0];
-        }
+      const walletsToFetch = Array.from(authorWallets).filter(w => w) as string[];
+
+      if (walletsToFetch.length > 0) {
+        const q = query(collection(db, "users"), where("walletAddress", "in", walletsToFetch));
+        const usersSnapshot = await getDocs(q);
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            authors[userData.walletAddress] = userData;
+        });
+        setCommentAuthors(authors);
       }
-      setCommentAuthors(authors);
     };
     if (comments.length > 0) loadAuthors();
-  }, [comments, devbaseClient]);
+  }, [comments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

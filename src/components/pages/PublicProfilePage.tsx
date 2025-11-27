@@ -6,7 +6,6 @@ import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
-import { devbaseHelpers } from '@/lib/nejma/helpers';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,16 +16,35 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2, Sparkles, Zap } from 'lucide-react';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
+import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube, twitter: Twitter, telegram: Send, facebook: Facebook,
     instagram: Instagram, tiktok: Music, website: Globe,
 };
 
+async function getUserByUsername(username: string) {
+    if (!username) return null;
+    const q = query(collection(db, 'users'), where('username', '==', username));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const userDoc = snapshot.docs[0];
+    return { id: userDoc.id, ...userDoc.data() };
+}
+
+async function getVideosForArtist(userId: string) {
+    if (!userId) return [];
+    const q = query(collection(db, 'videos'), where('artistId', '==', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+
 export function PublicProfilePage() {
     const params = useParams();
     const username = params.username as string;
-    const { devbaseClient, user: currentUser } = useDevapp();
+    const { user: currentUser } = useDevapp();
     const router = useRouter();
     const { addToast } = useToast();
 
@@ -41,9 +59,8 @@ export function PublicProfilePage() {
     const isOwnProfile = currentUser && user && currentUser.uid === user.walletAddress;
 
     const loadProfile = async () => {
-        if (!devbaseClient) return;
         setLoading(true);
-        const userData = await devbaseHelpers.getUserByUsername(devbaseClient, username);
+        const userData = await getUserByUsername(username);
         if (userData) {
             setUser(userData);
             setFormData({
@@ -52,7 +69,7 @@ export function PublicProfilePage() {
                 extraLinks: userData.extraLinks || JSON.stringify([]),
                 talentSubcategories: userData.talentSubcategories || JSON.stringify([]),
             });
-            const userVideos = await devbaseHelpers.getVideosForArtist(devbaseClient, userData.userId || userData.id);
+            const userVideos = await getVideosForArtist(userData.userId || userData.id);
             setVideos(userVideos);
         }
         setLoading(false);
@@ -60,7 +77,7 @@ export function PublicProfilePage() {
 
     useEffect(() => {
         loadProfile();
-    }, [devbaseClient, username]);
+    }, [username]);
 
     const parsedSocialLinks = useMemo(() => {
         try { return JSON.parse(formData.socialLinks || '{}'); } catch { return {}; }
@@ -94,8 +111,15 @@ export function PublicProfilePage() {
         if (!user || !user.id) { addToast('User profile not found', 'error'); return; }
         
         try {
-            const updatedData = { ...formData, bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl), profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl) };
-            await devbaseClient.updateEntity('users', user.id, updatedData);
+            const updatedData = { 
+                ...formData, 
+                bannerPhotoUrl: sanitizeUrl(formData.bannerPhotoUrl), 
+                profilePhotoUrl: sanitizeUrl(formData.profilePhotoUrl),
+                updatedAt: serverTimestamp()
+            };
+            delete updatedData.id; // Don't save id field back to document
+            
+            await updateDoc(doc(db, 'users', user.id), updatedData);
             setUser({ ...user, ...updatedData });
             setEditing(false);
             addToast('Profile updated successfully!', 'success');
@@ -103,14 +127,15 @@ export function PublicProfilePage() {
                 router.push(`/u/${formData.username}`);
             }
         } catch (error) {
+            console.error(error);
             addToast('Failed to update profile', 'error');
         }
     };
     
     const handleDeleteProfile = async () => {
-        if (!devbaseClient || !user) return;
+        if (!user || !user.id) return;
         try {
-            await devbaseClient.deleteEntity('users', user.id);
+            await deleteDoc(doc(db, 'users', user.id));
             addToast('Profile deleted successfully', 'success');
             router.push('/onboarding');
         } catch (error) {
@@ -270,9 +295,8 @@ export function PublicProfilePage() {
                         )}
                     </div>
                     
-                    {editing ? renderEditArtistFields() : (
-                        (Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && <div className="mt-6">{renderSocialLinks()}</div>
-                    )}
+                    {editing && user.role === 'artist' ? renderEditArtistFields() : null}
+                    {!editing && (Object.keys(socialLinks).length > 0 || extraLinks.length > 0) && <div className="mt-6">{renderSocialLinks()}</div>}
 
                 </CardContent>
             </Card>

@@ -11,9 +11,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFollowing, userRating, commentsCount }: any) {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -22,11 +24,14 @@ export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFo
 
   useEffect(() => {
     const loadAuthor = async () => {
-      const users = await devbaseClient.listEntities('users', { walletAddress: post.authorWallet });
-      if (users.length > 0) setAuthor(users[0]);
+      const q = query(collection(db, "users"), where("walletAddress", "==", post.authorWallet));
+      const usersSnapshot = await getDocs(q);
+      if (!usersSnapshot.empty) {
+        setAuthor({id: usersSnapshot.docs[0].id, ...usersSnapshot.docs[0].data()});
+      }
     };
     loadAuthor();
-  }, [post.authorWallet, devbaseClient]);
+  }, [post.authorWallet]);
 
   const handleFollow = () => {
     if (!user) { addToast('Please connect your wallet to follow users', 'error'); return; }
@@ -40,6 +45,8 @@ export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFo
     achievement: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     question: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   };
+  
+  const postDate = post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
 
   return (
     <Card className="p-4">
@@ -54,7 +61,7 @@ export function PostCard({ post, onCommentClick, onRate, ratings, onFollow, isFo
             </span>
             <Badge variant="outline" className={cn("capitalize text-xs", categoryColors[post.category as keyof typeof categoryColors] || categoryColors.general)}>{post.category}</Badge>
           </div>
-          <span className="text-muted-foreground text-xs block mt-1">{new Date(post.createdAt).toLocaleString()}</span>
+          <span className="text-muted-foreground text-xs block mt-1">{postDate.toLocaleString()}</span>
         </div>
         {user && post.authorWallet !== user.uid && (
             <Button onClick={handleFollow} onMouseEnter={() => setIsHoveringFollow(true)} onMouseLeave={() => setIsHoveringFollow(false)} size="sm" variant={isFollowing ? 'secondary' : 'outline'}>

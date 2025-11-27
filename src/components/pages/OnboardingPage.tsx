@@ -63,7 +63,7 @@ export function OnboardingPage() {
         </div>
         <div className="bg-card rounded-3xl p-6 md:p-8 border border-border/50 shadow-2xl shadow-primary/10">
           <div className="space-y-4">
-            <ChoiceButton label="Regular User" subLabel="Watch and vote — no account needed" gradient="from-blue-500 via-cyan-500 to-blue-400" onClick={() => router.push('/')} />
+            <ChoiceButton label="Browse Videos" subLabel="Watch and vote — no account needed" gradient="from-blue-500 via-cyan-500 to-blue-400" onClick={() => router.push('/')} />
             <ChoiceButton label="Fan (Free Account)" subLabel="Unlimited voting + messaging" gradient="from-green-500 via-cyan-500 to-blue-400" onClick={() => handleRoleClick('fan')} />
             <ChoiceButton label="Artist / Talent" subLabel="Showcase your talent and get discovered" gradient="from-pink-500 via-primary to-blue-500" onClick={() => handleRoleClick('artist')} />
             <ChoiceButton label="Business / Producer" subLabel="Discover and hire talent" gradient="from-yellow-500 via-orange-500 to-yellow-600" onClick={() => handleRoleClick('business')} />

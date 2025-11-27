@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { MARKETPLACE_SUBCATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
@@ -11,9 +10,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function MarketplacePage() {
-  const { devbaseClient, user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -24,35 +24,30 @@ export function MarketplacePage() {
   const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    if (!user) {
-      // router.push('/onboarding');
-    }
-  }, [user, router]);
-  
-  useEffect(() => {
     const loadProducts = async () => {
-      if (!devbaseClient) return;
       setLoading(true);
       try {
-        const filters: any = { status: 'active' };
-        if (category !== 'all') filters.category = category;
-        if (subcategory !== 'all') filters.subcategory = subcategory;
+        const filters = [where('status', '==', 'active')];
+        if (category !== 'all') filters.push(where('category', '==', category));
+        if (subcategory !== 'all') filters.push(where('subcategory', '==', subcategory));
 
-        let allProducts = await devbaseClient.listEntities('marketplace_products', filters);
+        let sortOrder: any = orderBy('createdAt', 'desc');
+        if (sortBy === 'price_low') sortOrder = orderBy('price', 'asc');
+        else if (sortBy === 'price_high') sortOrder = orderBy('price', 'desc');
         
-        if (sortBy === 'price_low') allProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
-        else if (sortBy === 'price_high') allProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
-        else allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        
+        const q = query(collection(db, 'marketplace_products'), ...filters, sortOrder);
+        const snapshot = await getDocs(q);
+        const allProducts = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
         setProducts(allProducts);
       } catch (error) {
+        console.error(error);
         addToast('Failed to load products', 'error');
       } finally {
         setLoading(false);
       }
     };
     loadProducts();
-  }, [devbaseClient, category, subcategory, sortBy]);
+  }, [category, subcategory, sortBy, addToast]);
 
   return (
     <div className="min-h-screen pt-6 pb-20">

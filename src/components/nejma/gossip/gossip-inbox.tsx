@@ -11,11 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, or } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function GossipInbox() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { addToast } = useToast();
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -25,27 +26,29 @@ export function GossipInbox() {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const loadMessages = async () => {
-    if (!user || !devbaseClient) {
+  useEffect(() => {
+    if (!user) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    try {
-      const sentMessages = await devbaseClient.listEntities('gossip_messages', { fromWallet: user.uid });
-      const receivedMessages = await devbaseClient.listEntities('gossip_messages', { toWallet: user.uid });
-      const allMessages = [...sentMessages, ...receivedMessages];
-      setMessages(allMessages.sort((a, b) => a.createdAt - b.createdAt));
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    loadMessages();
-  }, [user, devbaseClient]);
+    const q = query(
+      collection(db, 'gossip_messages'), 
+      or(where('fromWallet', '==', user.uid), where('toWallet', '==', user.uid))
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const allMessages = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        setMessages(allMessages.sort((a, b) => a.createdAt?.toMillis() - b.createdAt?.toMillis()));
+        setLoading(false);
+    }, (error) => {
+        console.error('Error loading messages:', error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const groupedMessages = useMemo(() => {
     if (!user) return {};
@@ -64,30 +67,36 @@ export function GossipInbox() {
         wallet,
         lastMessage: groupedMessages[wallet][groupedMessages[wallet].length - 1]
       }))
-      .sort((a, b) => b.lastMessage.createdAt - a.lastMessage.createdAt);
+      .sort((a, b) => b.lastMessage.createdAt?.toMillis() - a.lastMessage.createdAt?.toMillis());
   }, [groupedMessages]);
 
   useEffect(() => {
     const fetchConversationDetails = async () => {
       const newConversations: Record<string, any> = {};
-      for(const conv of conversationList) {
-        if(conv.wallet === ADMIN_WALLET) {
-          newConversations[ADMIN_WALLET] = { username: "NEJMA Support", profilePhotoUrl: null };
-        } else {
-            const users = await devbaseClient.listEntities('users', { walletAddress: conv.wallet });
-            if (users.length > 0) {
-              newConversations[conv.wallet] = users[0];
+      const walletsToFetch = conversationList.map(c => c.wallet).filter(w => w !== ADMIN_WALLET);
+      
+      if (walletsToFetch.length > 0) {
+        const usersQuery = query(collection(db, 'users'), where('walletAddress', 'in', walletsToFetch));
+        const usersSnapshot = await getDocs(usersQuery);
+        const usersByWallet = Object.fromEntries(usersSnapshot.docs.map(d => [d.data().walletAddress, d.data()]));
+        
+        conversationList.forEach(conv => {
+            if (conv.wallet === ADMIN_WALLET) {
+                newConversations[ADMIN_WALLET] = { username: "NEJMA Support", profilePhotoUrl: null };
             } else {
-              newConversations[conv.wallet] = { username: `${conv.wallet.slice(0, 8)}...`, profilePhotoUrl: null };
+                newConversations[conv.wallet] = usersByWallet[conv.wallet] || { username: `${conv.wallet.slice(0, 8)}...`, profilePhotoUrl: null };
             }
-        }
+        });
+
+      } else if (conversationList.some(c => c.wallet === ADMIN_WALLET)) {
+        newConversations[ADMIN_WALLET] = { username: "NEJMA Support", profilePhotoUrl: null };
       }
       setConversations(newConversations);
     }
     if (conversationList.length > 0) {
         fetchConversationDetails();
     }
-  }, [conversationList, devbaseClient]);
+  }, [conversationList]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -101,13 +110,13 @@ export function GossipInbox() {
     const tempMessage = newMessage;
     setNewMessage('');
     try {
-      await devbaseClient.createEntity('gossip_messages', {
+      await addDoc(collection(db, 'gossip_messages'), {
         fromWallet: user.uid,
         toWallet: selectedChat,
         content: tempMessage,
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
       });
-      await loadMessages();
+      // Real-time listener will update the UI
     } catch (error) {
       console.error('Error sending message:', error);
       setNewMessage(tempMessage);
@@ -173,7 +182,7 @@ export function GossipInbox() {
                         <p className="font-bold truncate">{conversations[wallet]?.username}</p>
                         <p className="text-sm text-muted-foreground truncate">{lastMessage.content}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground">{new Date(lastMessage.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(lastMessage.createdAt?.toMillis()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
             </Card>
         ))}

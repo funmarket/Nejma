@@ -11,9 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function NewRentalListingPage() {
-  const { devbaseClient, user } = useDevapp();
+  const { user } = useDevapp();
   const router = useRouter();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -31,7 +33,7 @@ export function NewRentalListingPage() {
     setLoading(true);
     try {
       const imageUrls = formData.images.filter(img => img.trim() !== '');
-      await devbaseClient.createEntity('rentals', {
+      await addDoc(collection(db, 'rentals'), {
         ownerId: user.uid,
         title: formData.title,
         description: formData.description,
@@ -42,7 +44,7 @@ export function NewRentalListingPage() {
         availability: formData.availability,
         images: JSON.stringify(imageUrls),
         status: 'active',
-        createdAt: Date.now()
+        createdAt: serverTimestamp()
       });
       addToast('Rental listed successfully!', 'success');
       router.push('/marketplace/rental');
@@ -77,7 +79,7 @@ export function NewRentalListingPage() {
           <div className="space-y-2"><Label htmlFor="title">Item Title *</Label><Input id="title" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} required placeholder="e.g., Professional Camera Kit" /></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Category *</Label><Select value={formData.category} onValueChange={val => setFormData({...formData, category: val, subCategory: ''})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.keys(RENTAL_SUBCATEGORIES).map(cat => <SelectItem key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Subcategory *</Label><Select value={formData.subCategory} onValueChange={val => setFormData({...formData, subCategory: val})} required><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{RENTAL_SUBCATEGORIES[formData.category]?.map(sub => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Subcategory *</Label><Select value={formData.subCategory} onValueChange={val => setFormData({...formData, subCategory: val})} required><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{RENTAL_SUBCATEGORIES[formData.category as keyof typeof RENTAL_SUBCATEGORIES]?.map(sub => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="space-y-2"><Label htmlFor="price">Price Per Day (SOL) *</Label><Input id="price" type="number" step="0.01" value={formData.pricePerDay} onChange={e => setFormData({ ...formData, pricePerDay: e.target.value })} required placeholder="0.00" /></div>
           <div className="space-y-2"><Label htmlFor="description">Description *</Label><Textarea id="description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} required rows={5} placeholder="Describe the rental item..." /></div>

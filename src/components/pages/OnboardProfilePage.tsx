@@ -7,7 +7,6 @@ import { useDevapp } from '@/components/providers/devapp-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
-import { devbaseClient } from '@/lib/devbase';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Youtube, Twitter, Send, Facebook, Instagram, Music, Globe, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const socialIcons: Record<string, React.ElementType> = {
     youtube: Youtube,
@@ -53,9 +54,8 @@ export function OnboardProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (!loadingUser && user) {
-            setFormData(prev => ({ ...prev, username: user.displayName?.replace(/\s/g, '') || '', profilePhotoUrl: user.photoURL || '' }));
-        }
+        // We can't get user's display name or photo from Solana wallet
+        // This remains empty, users have to fill it.
     }, [user, loadingUser]);
     
     useEffect(() => {
@@ -107,7 +107,7 @@ export function OnboardProfilePage() {
         
         setIsSaving(true);
         try {
-            const profileData = {
+            const profileData: any = {
                 walletAddress: user.uid,
                 username: formData.username || '',
                 bio: formData.bio || '',
@@ -121,15 +121,20 @@ export function OnboardProfilePage() {
                 talentSubcategories: role === 'artist' ? formData.talentSubcategories : JSON.stringify([]),
                 rankingScore: 0,
                 escrowBalance: 0,
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             };
 
-            const existingUsers = await devbaseClient.listEntities('users', { walletAddress: user.uid });
-            if (existingUsers.length === 0) {
-                const newUser = await devbaseClient.createEntity('users', { ...profileData, createdAt: Date.now() });
-                await devbaseClient.updateEntity('users', newUser.id, { userId: newUser.id });
+            const usersCollection = collection(db, 'users');
+            const q = query(usersCollection, where('walletAddress', '==', user.uid));
+            const existingUsers = await getDocs(q);
+
+            if (existingUsers.empty) {
+                profileData.createdAt = serverTimestamp();
+                const newUserRef = await addDoc(usersCollection, profileData);
+                await updateDoc(doc(db, 'users', newUserRef.id), { userId: newUserRef.id });
             } else {
-                await devbaseClient.updateEntity('users', existingUsers[0].id, profileData);
+                const userDocRef = existingUsers.docs[0].ref;
+                await updateDoc(userDocRef, profileData);
             }
             
             addToast('Profile created successfully!', 'success');
@@ -306,4 +311,3 @@ export function OnboardProfilePage() {
     );
 }
 
-    
