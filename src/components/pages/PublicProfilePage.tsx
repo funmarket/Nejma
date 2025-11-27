@@ -4,7 +4,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useToast } from '@/components/providers/toast-provider';
+import { useToast } from '@/hooks/use-toast';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,7 +76,9 @@ export function PublicProfilePage() {
     };
 
     useEffect(() => {
-        loadProfile();
+        if(username) {
+            loadProfile();
+        }
     }, [username]);
 
     const parsedSocialLinks = useMemo(() => {
@@ -185,7 +187,7 @@ export function PublicProfilePage() {
                         <Label>Subcategories (Select one or more)</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                         {TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories.map(sub => {
-                            const currentSubs = JSON.parse(formData.talentSubcategories);
+                            const currentSubs = JSON.parse(formData.talentSubcategories || '[]');
                             const isSelected = currentSubs.includes(sub.value);
                             return (
                                 <Button key={sub.value} type="button" onClick={() => {
@@ -242,6 +244,7 @@ export function PublicProfilePage() {
                         <div className="p-4 space-y-2">
                            <Label>Banner Photo URL</Label>
                            <Input value={formData.bannerPhotoUrl || ''} onChange={e=>setFormData({...formData, bannerPhotoUrl: e.target.value})} placeholder="https://..." />
+                           {formData.bannerPhotoUrl && <Image src={formData.bannerPhotoUrl} alt="Banner preview" width={400} height={100} className="w-full h-24 object-cover rounded-lg mt-2" />}
                         </div>
                     ) : user.bannerPhotoUrl && <Image src={user.bannerPhotoUrl} alt="Banner" layout="fill" objectFit="cover" />}
                     
@@ -262,8 +265,8 @@ export function PublicProfilePage() {
                         <div className="absolute -top-16 sm:-top-20">
                             <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary flex items-center justify-center text-white font-bold border-4 border-card overflow-hidden shadow-lg">
                                 {editing ? (
-                                    <div className="w-full h-full flex items-center justify-center bg-card">
-                                        <Button variant="ghost" size="sm" className="text-xs">Edit Photo</Button>
+                                     <div className="w-full h-full flex items-center justify-center bg-card text-center p-2">
+                                        <Label htmlFor="profile-photo-url-edit" className="text-xs cursor-pointer text-muted-foreground">Change<br/>Photo</Label>
                                     </div>
                                 ) : (user.profilePhotoUrl ? <Image src={user.profilePhotoUrl} alt={user.username} width={128} height={128} className="w-full h-full object-cover" /> : <span className="text-4xl">{user.username?.[0]?.toUpperCase()}</span>)}
                             </div>
@@ -271,27 +274,36 @@ export function PublicProfilePage() {
                     </div>
                     
                     <div className="mt-10 sm:mt-16">
-                        {editing ? <Input value={formData.username || ''} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" /> : <h1 className="text-2xl font-bold">@{user.username}</h1>}
-                        
-                        <div className="flex flex-wrap gap-2 my-3">
-                            <span className="px-3 py-1 rounded-full bg-primary/20 text-primary font-medium text-sm border border-primary/50 capitalize">{user.role}</span>
-                            {user.talentCategory && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium text-sm capitalize">{user.talentCategory}</span>}
-                        </div>
-                        
                         {editing ? (
-                            <>
-                                <Textarea value={formData.bio || ''} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
-                                <Input value={formData.location || ''} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Location" className="text-base" />
-                                <div className="mt-4">
-                                    <Label>Profile Photo URL</Label>
-                                    <Input value={formData.profilePhotoUrl || ''} onChange={e=>setFormData({...formData, profilePhotoUrl: e.target.value})} placeholder="https://..." />
-                                </div>
-                            </>
+                          <div className="space-y-4">
+                            <div>
+                                <Label htmlFor="username-edit">Username</Label>
+                                <Input id="username-edit" value={formData.username || ''} onChange={e=>setFormData({...formData, username: e.target.value})} className="text-2xl font-bold mb-1" />
+                            </div>
+                            <div>
+                                <Label htmlFor="bio-edit">Bio</Label>
+                                <Textarea id="bio-edit" value={formData.bio || ''} onChange={e=>setFormData({...formData, bio: e.target.value})} className="text-base mb-4" />
+                            </div>
+                             <div>
+                                <Label htmlFor="location-edit">Location</Label>
+                                <Input id="location-edit" value={formData.location || ''} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Location" className="text-base" />
+                            </div>
+                            <div>
+                                <Label htmlFor="profile-photo-url-edit">Profile Photo URL</Label>
+                                <Input id="profile-photo-url-edit" value={formData.profilePhotoUrl || ''} onChange={e=>setFormData({...formData, profilePhotoUrl: e.target.value})} placeholder="https://..." />
+                                {formData.profilePhotoUrl && <Image src={formData.profilePhotoUrl} alt="Profile preview" width={80} height={80} className="w-20 h-20 rounded-full object-cover mt-2" />}
+                            </div>
+                          </div>
                         ) : (
-                            <>
-                               <p className="text-muted-foreground whitespace-pre-wrap">{user.bio || ''}</p>
-                               {user.location && <p className="text-sm text-muted-foreground mt-2">{user.location}</p>}
-                            </>
+                          <>
+                            <h1 className="text-2xl font-bold">@{user.username}</h1>
+                            <div className="flex flex-wrap gap-2 my-3">
+                                <span className="px-3 py-1 rounded-full bg-primary/20 text-primary font-medium text-sm border border-primary/50 capitalize">{user.role}</span>
+                                {user.talentCategory && <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium text-sm capitalize">{user.talentCategory}</span>}
+                            </div>
+                            <p className="text-muted-foreground whitespace-pre-wrap">{user.bio || ''}</p>
+                            {user.location && <p className="text-sm text-muted-foreground mt-2">{user.location}</p>}
+                          </>
                         )}
                     </div>
                     
@@ -306,6 +318,7 @@ export function PublicProfilePage() {
                 {videos.length === 0 ? (
                     <Card className="p-12 bg-card text-center border-dashed">
                         <p className="text-muted-foreground">No videos yet</p>
+                        {isOwnProfile && <Button onClick={() => router.push('/submit-video')} className="mt-4">Upload Video</Button>}
                     </Card>
                 ) : (
                     <div className="grid md:grid-cols-2 gap-6">
