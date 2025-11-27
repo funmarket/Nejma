@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/providers/toast-provider';
 import { WalletConnectPrompt } from '@/components/nejma/wallet-connect-prompt';
 import { sanitizeUrl } from '@/lib/nejma/youtube';
 import { TALENT_CATEGORIES } from '@/lib/nejma/constants';
@@ -79,7 +79,10 @@ export function OnboardProfilePage() {
     };
 
     const addExtraLink = () => {
-        if (parsedExtraLinks.length >= 5) return;
+        if (parsedExtraLinks.length >= 5) {
+            addToast('Maximum 5 extra links allowed.', 'error');
+            return;
+        }
         setFormData(prev => ({ ...prev, extraLinks: JSON.stringify([...parsedExtraLinks, { label: '', url: '' }]) }));
     };
     
@@ -89,7 +92,10 @@ export function OnboardProfilePage() {
     };
 
     const handleCreateProfile = async () => {
-        if (!publicKey) return;
+        if (!publicKey) {
+            addToast('Wallet not connected.', 'error');
+            return;
+        }
         if (!formData.username) { addToast('Username is required.', 'error'); return; }
 
         let role = 'fan';
@@ -196,8 +202,8 @@ export function OnboardProfilePage() {
                     <div>
                         <Label>Subcategories (Select one or more)</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                        {TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories.map(sub => {
-                            const currentSubs = JSON.parse(formData.talentSubcategories);
+                        {(TALENT_CATEGORIES[formData.talentCategory as keyof typeof TALENT_CATEGORIES].subcategories || []).map(sub => {
+                            const currentSubs = JSON.parse(formData.talentSubcategories || '[]');
                             const isSelected = currentSubs.includes(sub.value);
                             return (
                                 <Button key={sub.value} type="button" onClick={() => {
@@ -307,5 +313,3 @@ export function OnboardProfilePage() {
         </div>
     );
 }
-
-    
