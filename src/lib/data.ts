@@ -232,3 +232,5 @@ export const serviceAds: GossipServiceAd[] = [
         imageUrl: 'https://picsum.photos/seed/headshot/800/200',
     }
 ];
+
+    

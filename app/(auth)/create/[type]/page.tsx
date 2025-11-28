@@ -13,3 +13,5 @@ export default function CreateProfilePage({ params }: { params: { type: string }
 
   return <CreateProfileForm accountType={type as 'fan' | 'artist' | 'business'} />;
 }
+
+    

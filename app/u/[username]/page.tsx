@@ -18,3 +18,5 @@ export default async function PublicProfilePage({ params }: { params: { username
 
   return <UserProfile profileUser={user} videos={videos} />;
 }
+
+    

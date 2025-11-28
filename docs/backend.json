@@ -965,3 +965,5 @@
     "reasoning": "The Firestore structure prioritizes authorization independence and QAPs. The key strategy is denormalization. For instance, the `videos` collection denormalizes `artistId` which facilitates secure list operations. The `bookmarks` collection is structured under the user's document (`/users/{userId}/bookmarks/{bookmarkId}`), ensuring that only the authenticated user can manage their bookmarks.  The `gossip_posts` collection includes the `authorWallet` field, allowing for secure filtering of posts based on the author's identity. This design avoids complex `get()` calls in security rules, simplifying authorization and improving performance. DBAC is achieved by relying solely on `request.auth.uid` and storing roles directly in the `users` collection."
   }
 }
+
+    

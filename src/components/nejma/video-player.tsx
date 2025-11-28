@@ -100,3 +100,5 @@ export function VideoPlayer({ url, isActive }: VideoPlayerProps) {
     </div>
   );
 }
+
+    

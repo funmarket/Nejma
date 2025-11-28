@@ -106,3 +106,5 @@ export const TALENT_CATEGORIES = {
       }]
     }
 };
+
+    

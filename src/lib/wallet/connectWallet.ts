@@ -10,3 +10,5 @@ export const connectWallet = async (provider: WalletProvider) => {
     provider,
   };
 };
+
+    

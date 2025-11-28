@@ -100,3 +100,5 @@ export function AuthHandler({ children }: { children: React.ReactNode }) {
 
   return <MainLayout>{children}</MainLayout>;
 }
+
+    

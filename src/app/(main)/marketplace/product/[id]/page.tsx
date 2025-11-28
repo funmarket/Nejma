@@ -3,3 +3,5 @@ import { ProductDetailPage } from "@/components/pages/marketplace/ProductDetailP
 export default function ProductDetailRoute() {
     return <ProductDetailPage />;
 }
+
+    

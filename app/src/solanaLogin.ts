@@ -60,3 +60,5 @@ export const solanaLogin = functions.https.onRequest((req, res) => {
     res.status(500).json({ error: "Internal error" });
   }
 });
+
+    

@@ -50,3 +50,5 @@ if (typeof window !== "undefined") {
 // New login should use Solana wallet adapter.
 
 export { firebaseApp, db, auth };
+
+    

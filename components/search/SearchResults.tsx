@@ -137,3 +137,5 @@ export default function SearchResults({ query }: { query: string }) {
     </div>
   );
 }
+
+    

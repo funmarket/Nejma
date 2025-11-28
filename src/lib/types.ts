@@ -125,3 +125,5 @@ export interface GossipUserFollows {
     followerWallet: string; // Legacy for display
     followingWallet: string; // Legacy for display
 }
+
+    

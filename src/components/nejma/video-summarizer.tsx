@@ -63,3 +63,5 @@ export function VideoSummarizer({ videoUrl, onSummaryGenerated }: VideoSummarize
     </div>
   );
 }
+
+    

@@ -65,7 +65,7 @@ export default function VideoFeed({
     if (activeFeedTab !== 'music' || videos.length === 0) {
       loadVideos();
     }
-  }, [activeFeedTab, loadVideos]);
+  }, [activeFeedTab, loadVideos, videos.length]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -194,3 +194,5 @@ export default function VideoFeed({
     </div>
   );
 }
+
+    

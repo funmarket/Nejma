@@ -87,3 +87,5 @@ export default function VideoPlayer({ url, isActive }: VideoPlayerProps) {
     </div>
   );
 }
+
+    

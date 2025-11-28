@@ -3,3 +3,5 @@ import { RentalDetailPage } from "@/components/pages/marketplace/RentalDetailPag
 export default function RentalDetailRoute() {
     return <RentalDetailPage />;
 }
+
+    

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -520,3 +519,5 @@ export function PublicProfilePage() {
         </div>
     );
 }
+
+    

@@ -19,3 +19,5 @@ export const AdoptIcon = ({ size = 20, className = '' }: IconProps) => (
         <path d="M20 8V14M23 11H17" />
     </svg>
 );
+
+    

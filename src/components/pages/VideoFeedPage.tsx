@@ -125,7 +125,7 @@ export function VideoFeedPage() {
           recordView(video.id);
           loadArtistForVideo(video.artistId);
       }
-  }, [currentIndex, videos, loadArtistForVideo]);
+  }, [currentIndex, videos, loadArtistForVideo, user]);
 
 
   const handleVote = async (isTop: boolean) => {
@@ -263,3 +263,5 @@ export function VideoFeedPage() {
     </div>
   );
 }
+
+    

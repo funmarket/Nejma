@@ -15,3 +15,5 @@ export const signWalletMessage = async (
 
   return Buffer.from(signature).toString("base64");
 };
+
+    

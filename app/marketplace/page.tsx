@@ -77,3 +77,5 @@ export default function MarketplacePage() {
   
   return <MarketplaceClient items={mockItems} categories={categories} subcategories={subcategories} />;
 }
+
+    

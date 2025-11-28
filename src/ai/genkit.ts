@@ -10,3 +10,5 @@ export const ai = genkit({
   ],
   model: 'ollama/llama3',
 });
+
+    

@@ -104,4 +104,5 @@ export const TALENT_CATEGORIES = {
     technology: ['Computers', 'Software', 'Equipment', 'Accessories', 'Other'],
     photography: ['Cameras', 'Lenses', 'Lighting', 'Backdrops', 'Props', 'Studio Space', 'Other']
   };
-  
+
+    

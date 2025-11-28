@@ -36,3 +36,5 @@ const SolanaWalletProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default SolanaWalletProvider;
+
+    

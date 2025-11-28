@@ -23,3 +23,5 @@ export const loginWithWallet = async () => {
     throw new Error('Failed to create a secure session. Please try again.');
   }
 };
+
+    

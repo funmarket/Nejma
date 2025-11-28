@@ -11,3 +11,5 @@ export default async function Home() {
   
   return <VideoFeed initialVideos={initialVideos} initialArtists={initialArtists} />;
 }
+
+    

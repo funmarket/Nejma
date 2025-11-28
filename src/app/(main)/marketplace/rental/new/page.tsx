@@ -3,3 +3,5 @@ import { NewRentalListingPage } from "@/components/pages/marketplace/NewRentalLi
 export default function NewRentalListingRoute() {
     return <NewRentalListingPage />;
 }
+
+    
